@@ -6,9 +6,8 @@ import path from 'path';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI initialized lazily inside handler to prevent build errors
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Twilio credentials (if using Twilio SDK to send replies)
 // const client = require('twilio')(accountSid, authToken); 
@@ -43,6 +42,10 @@ export async function POST(req) {
             if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
             const tempFilePath = path.join(tempDir, `wa_${Date.now()}.ogg`);
             fs.writeFileSync(tempFilePath, Buffer.from(buffer));
+
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY,
+            });
 
             const transcription = await openai.audio.transcriptions.create({
                 file: fs.createReadStream(tempFilePath),

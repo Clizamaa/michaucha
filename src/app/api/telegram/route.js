@@ -7,9 +7,8 @@ import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 
 // Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI lazily
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -69,6 +68,10 @@ export async function POST(req) {
         fs.writeFileSync(tempFilePath, Buffer.from(buffer));
 
         // 4. Transcribe with Whisper
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+
         const transcription = await openai.audio.transcriptions.create({
             file: fs.createReadStream(tempFilePath),
             model: "whisper-1",
