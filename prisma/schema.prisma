@@ -1,0 +1,46 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Category {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            Int           @id @default(autoincrement())
+  amount        Int
+  date          DateTime      @default(now())
+  description   String?
+  categoryId    Int
+  category      Category      @relation(fields: [categoryId], references: [id])
+  paymentMethod PaymentMethod @default(CASH)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([date])
+  @@index([categoryId])
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT
+  VISA
+}
+
+model MonthlyBudget {
+  id        Int      @id @default(autoincrement())
+  month     Int
+  year      Int
+  amount    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([month, year])
+}
