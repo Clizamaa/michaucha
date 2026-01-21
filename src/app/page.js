@@ -9,6 +9,7 @@ import BudgetCard from "@/components/dashboard/BudgetCard";
 import MonthNavigation from "@/components/shared/MonthNavigation"; // Import the new component
 import DeleteButton from "@/components/shared/DeleteButton";
 import { getDashboardData, createTransaction } from "@/app/actions/transaction"; // Verify path
+import FixedExpensesList from "@/components/dashboard/FixedExpensesList"; // Import new component
 import { formatCLP, cn } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
@@ -82,19 +83,23 @@ export default async function Dashboard({ searchParams }) {
           {/* Stacked Info Cards */}
           <div className="flex flex-col gap-6 h-full">
             {/* Top Gasto */}
-            <div className="flex-1 p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 flex flex-col justify-between group hover:border-white/10 transition-colors">
+            <Link
+              href={summary.maxExpense.categoryId ? `/category/${summary.maxExpense.categoryId}` : '#'}
+              className="flex-1 p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 flex flex-col justify-between group hover:border-white/10 transition-colors cursor-pointer"
+            >
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center">
                   <Activity size={24} />
                 </div>
-                <span className="bg-orange-500/10 text-orange-400 text-xs font-bold px-2 py-1 rounded-lg">High</span>
+                <div className="bg-orange-500/10 text-orange-400 p-1 rounded-lg">
+                  <ArrowUpRight size={16} />
+                </div>
               </div>
               <div>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Top Gasto</p>
                 <p className="text-white font-bold text-lg truncate">{summary.maxExpense.category}</p>
-                <p className="text-2xl text-white font-mono font-bold mt-1">{formatCLP(summary.maxExpense.amount)}</p>
+                <p className="text-xs text-slate-500 mt-1">Ver detalle mensual</p>
               </div>
-            </div>
+            </Link>
 
             {/* VISA Shortcut */}
             <Link href="/visa" className="flex-1 p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 flex flex-col justify-between group hover:bg-[#252636] transition-all relative overflow-hidden">
@@ -117,6 +122,9 @@ export default async function Dashboard({ searchParams }) {
             </Link>
           </div>
         </div>
+
+        {/* Fixed Expenses Section */}
+        <FixedExpensesList currentDate={currentDate} />
 
         {/* Recent Transactions Table Style */}
         <div className="bg-[#1f2029] rounded-[2.5rem] p-8 border border-white/5 shadow-2xl shadow-black/20">

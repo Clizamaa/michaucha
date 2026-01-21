@@ -57,8 +57,40 @@ export async function getDashboardData(date = new Date()) {
             remaining,
             diffPercent: 0,
             dailyAverage: Math.round(dailyAverage),
-            maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount } : { category: '-', amount: 0 }
+            maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId } : { category: '-', amount: 0, categoryId: null }
         },
         recentTransactions: transactions // Return all for the month view, or maybe still slice? Let's return all for "Recientes" in context of month
+    };
+}
+
+export async function getCategoryTransactions(categoryId, date = new Date()) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 1);
+
+    const transactions = await prisma.transaction.findMany({
+        where: {
+            categoryId: parseInt(categoryId),
+            date: {
+                gte: firstDay,
+                lt: lastDay
+            }
+        },
+        include: { category: true },
+        orderBy: { date: 'desc' }
+    });
+
+    const category = await prisma.category.findUnique({
+        where: { id: parseInt(categoryId) }
+    });
+
+    const total = transactions.reduce((acc, curr) => acc + curr.amount, 0);
+
+    return {
+        categoryName: category ? category.name : 'Desconocida',
+        transactions,
+        total
     };
 }
