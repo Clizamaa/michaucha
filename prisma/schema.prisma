@@ -1,10 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
 }
 
 model Category {
@@ -19,19 +19,13 @@ model Transaction {
   date          DateTime      @default(now())
   description   String?
   categoryId    Int
-  category      Category      @relation(fields: [categoryId], references: [id])
   paymentMethod PaymentMethod @default(CASH)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  category      Category      @relation(fields: [categoryId], references: [id])
 
   @@index([date])
   @@index([categoryId])
-}
-
-enum PaymentMethod {
-  CASH
-  DEBIT
-  VISA
 }
 
 model MonthlyBudget {
@@ -49,21 +43,27 @@ model FixedExpense {
   id        Int                   @id @default(autoincrement())
   name      String
   amount    Int
-  payments  FixedExpensePayment[]
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
+  payments  FixedExpensePayment[]
 }
 
 model FixedExpensePayment {
   id             Int          @id @default(autoincrement())
   fixedExpenseId Int
-  fixedExpense   FixedExpense @relation(fields: [fixedExpenseId], references: [id])
   month          Int
   year           Int
   isPaid         Boolean      @default(false)
   paidAt         DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  fixedExpense   FixedExpense @relation(fields: [fixedExpenseId], references: [id])
 
   @@unique([fixedExpenseId, month, year])
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT
+  VISA
 }
