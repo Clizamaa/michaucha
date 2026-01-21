@@ -68,3 +68,15 @@ export async function updateFixedExpenseAmount(id, amount) {
     revalidatePath('/');
     return { success: true };
 }
+
+export async function toggleFixedExpenseByName(name, month, year, isPaid) {
+    const expense = await prisma.fixedExpense.findFirst({
+        where: { name: name }
+    });
+
+    if (!expense) {
+        return { success: false, error: `Gasto no encontrado: ${name}` };
+    }
+
+    return await toggleFixedExpensePayment(expense.id, month, year, isPaid);
+}

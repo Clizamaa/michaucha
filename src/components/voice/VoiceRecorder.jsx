@@ -5,6 +5,7 @@ import { Mic, Loader2, Check, X, Wand2, CreditCard, Keyboard, Calendar } from 'l
 import { cn, formatCLP } from '@/lib/utils';
 import { parseTransaction, CATEGORIES } from '@/lib/voice-parser';
 import { createTransaction } from '@/app/actions/transaction';
+import { toggleFixedExpenseByName } from '@/app/actions/fixed-expense';
 
 export default function VoiceRecorder({ onSave }) {
     const [isListening, setIsListening] = useState(false);
@@ -80,9 +81,17 @@ export default function VoiceRecorder({ onSave }) {
             alert("Tu navegador no soporta reconocimiento de voz.");
             return;
         }
+
+        if (isListening) return; // Prevent double start
+
         try {
             recognitionRef.current.start();
         } catch (e) {
+            // Ignore "already started" error
+            if (e.name === 'InvalidStateError' || e.message?.includes('already started')) {
+                console.log("Recognition already active");
+                return;
+            }
             console.error("Error starting recognition", e);
         }
     };
@@ -104,6 +113,19 @@ export default function VoiceRecorder({ onSave }) {
 
     const handleConfirm = async () => {
         if (parsedData) {
+            if (parsedData.type === 'FIXED_PAYMENT') {
+                const year = new Date().getFullYear();
+                const month = new Date().getMonth() + 1;
+
+                const res = await toggleFixedExpenseByName(parsedData.expenseName, month, year, true);  // Always paying for now
+                if (res.success) {
+                    reset();
+                } else {
+                    setError("Error: " + (res.error || "No se pudo marcar el pago"));
+                }
+                return;
+            }
+
             const saveFn = onSave || createTransaction;
             const res = await saveFn(parsedData);
             if (res.success) {
@@ -319,51 +341,73 @@ export default function VoiceRecorder({ onSave }) {
                 {/* Confirmation Action for Voice */}
                 {status === 'confirming' && parsedData && (
                     <div className="space-y-4 animate-in slide-in-from-bottom-5 fade-in duration-500">
-                        {/* Summary Cards */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="p-4 bg-[#151621] rounded-2xl border border-white/5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monto</label>
-                                <div className="text-2xl font-bold text-white tracking-tight">
-                                    {formatCLP(parsedData.amount)}
+                        {parsedData.type === 'FIXED_PAYMENT' ? (
+                            // Fixed Expense Confirmation UI
+                            <div className="text-center p-6 bg-gradient-to-b from-emerald-500/10 to-transparent rounded-2xl border border-emerald-500/20">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500 text-white mb-4 shadow-lg shadow-emerald-500/30">
+                                    <Check className="w-8 h-8" />
                                 </div>
+                                <h3 className="text-white font-bold text-xl mb-1">Confirmar Pago</h3>
+                                <p className="text-emerald-400 font-medium text-lg">{parsedData.expenseName}</p>
+                                <p className="text-slate-500 text-sm mt-2">Se marcará como pagado este mes</p>
                             </div>
-                            <div className="p-4 bg-[#151621] rounded-2xl border border-white/5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
-                                <div className="text-lg font-bold text-blue-400 truncate">
-                                    {parsedData.category}
+                        ) : (
+                            // Regular Transaction UI (existing)
+                            <>
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-4 bg-[#151621] rounded-2xl border border-white/5">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monto</label>
+                                        <div className="text-2xl font-bold text-white tracking-tight">
+                                            {formatCLP(parsedData.amount)}
+                                        </div>
+                                    </div>
+                                    <div className="p-4 bg-[#151621] rounded-2xl border border-white/5">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Categoría</label>
+                                        <div className="text-lg font-bold text-blue-400 truncate">
+                                            {parsedData.category}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div className="flex gap-3">
-                            <div className="flex-1 p-3 flex items-center gap-3 bg-[#151621] rounded-xl border border-white/5">
-                                <div className={cn("p-2 rounded-lg", parsedData.paymentMethod === 'VISA' ? "bg-orange-500/20 text-orange-400" : "bg-green-500/20 text-green-400")}>
-                                    <CreditCard size={18} />
+                                <div className="flex gap-3">
+                                    <div className="flex-1 p-3 flex items-center gap-3 bg-[#151621] rounded-xl border border-white/5">
+                                        <div className={cn("p-2 rounded-lg", parsedData.paymentMethod === 'VISA' ? "bg-orange-500/20 text-orange-400" : "bg-green-500/20 text-green-400")}>
+                                            <CreditCard size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase">Método</p>
+                                            <p className="font-semibold text-slate-300 text-sm">{parsedData.paymentMethod}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 p-3 flex items-center gap-3 bg-[#151621] rounded-xl border border-white/5">
+                                        <div className="bg-blue-500/20 text-blue-400 p-2 rounded-lg text-xs font-bold">
+                                            {parsedData.date instanceof Date ? parsedData.date.getDate() : new Date().getDate()}
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase">Fecha</p>
+                                            <p className="font-semibold text-slate-300 text-sm">
+                                                {parsedData.date instanceof Date
+                                                    ? parsedData.date.toLocaleDateString('es-CL', { month: 'short' })
+                                                    : 'Hoy'}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Método</p>
-                                    <p className="font-semibold text-slate-300 text-sm">{parsedData.paymentMethod}</p>
-                                </div>
-                            </div>
-                            <div className="flex-1 p-3 flex items-center gap-3 bg-[#151621] rounded-xl border border-white/5">
-                                <div className="bg-blue-500/20 text-blue-400 p-2 rounded-lg text-xs font-bold">
-                                    {parsedData.date.getDate()}
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase">Fecha</p>
-                                    <p className="font-semibold text-slate-300 text-sm">
-                                        {parsedData.date.toLocaleDateString('es-CL', { month: 'short' })}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                            </>
+                        )}
 
                         <button
                             onClick={handleConfirm}
-                            className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-500 active:scale-95 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                            className={cn(
+                                "w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2",
+                                parsedData.type === 'FIXED_PAYMENT'
+                                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20"
+                                    : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
+                            )}
                         >
                             <Check className="w-5 h-5" />
-                            Guardar Gasto
+                            {parsedData.type === 'FIXED_PAYMENT' ? 'Confirmar Pago' : 'Guardar Gasto'}
                         </button>
                     </div>
                 )}

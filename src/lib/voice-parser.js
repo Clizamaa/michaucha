@@ -103,8 +103,59 @@ function parseDate(text) {
     return today;
 }
 
+const FIXED_EXPENSE_KEYWORDS = ["pagar", "pagué", "pagado", "listo", "check", "ya pagué"];
+
+function parseFixedExpenseCommand(text) {
+    const lowerText = text.toLowerCase();
+
+    // Check for intent
+    const hasIntent = FIXED_EXPENSE_KEYWORDS.some(k => lowerText.includes(k));
+    if (!hasIntent) return null;
+
+    // Check for expense name using existing categories logic
+    // We strictly look for matches in CATEGORIES that correspond to fixed expenses
+    // Ideally we should have a separate list, but reusing CATEGORIES works for Arriendo, Luz, etc.
+
+    for (const [key, keywords] of Object.entries(CATEGORIES)) {
+        if (key === 'VISA' || key === 'GASTOS_VARIOS') continue;
+
+        if (keywords.some(k => lowerText.includes(k))) {
+            // Map the key to the expected DB name for FixedExpense
+            // We need to ensure these match the seed names: 'Arriendo', 'Luz', 'Internet', etc.
+            // Let's format it: Capitalize first letter, rest lowercase (except special cases)
+
+            // Special mapping for seed data names
+            const nameMapping = {
+                'ARRIENDO': 'Arriendo',
+                'ALMUERZO': 'Almuerzos',
+                'LOCOMOCION': 'Locomocion',
+                'LUZ': 'Luz',
+                'CELULAR': 'Celular',
+                'VTR': 'Internet', // VTR maps to Internet in seed
+                'TIO_FELIX': 'Tio Felix',
+                'SEGURO_AUTO': 'Seguro Auto',
+                'ASEO': 'Aseo' // Not seeded but good to have
+            };
+
+            return {
+                type: 'FIXED_PAYMENT',
+                expenseName: nameMapping[key] || (key.charAt(0) + key.slice(1).toLowerCase()),
+                action: 'PAY'
+            };
+        }
+    }
+
+    return null;
+}
+
 export function parseTransaction(text) {
     if (!text) return null;
+
+    // First check for fixed expense command
+    const fixedExpenseCmd = parseFixedExpenseCommand(text);
+    if (fixedExpenseCmd) {
+        return fixedExpenseCmd;
+    }
 
     const amount = parseAmount(text);
     const category = parseCategory(text);
