@@ -44,6 +44,25 @@ export async function POST(request) {
     }
 
     console.log("Transaction created successfully:", result.data);
+
+    // 4. Auto-Check Fixed Expenses
+    // If the transaction category matches a Fixed Expense, mark it as paid for this month.
+    try {
+      const transactionDate = new Date(result.data.date);
+      const month = transactionDate.getMonth() + 1;
+      const year = transactionDate.getFullYear();
+      const categoryName = result.data.category?.name || category;
+
+      console.log(`Checking fixed expense for category: ${categoryName}`);
+
+      const { toggleFixedExpenseByName } = require('@/app/actions/fixed-expense');
+      await toggleFixedExpenseByName(categoryName, month, year, true);
+
+    } catch (feError) {
+      console.warn("Could not auto-update fixed expense:", feError);
+      // We don't fail the request if this part fails, it's a bonus feature
+    }
+
     return NextResponse.json({ success: true, transaction: result.data });
 
   } catch (error) {
