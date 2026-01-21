@@ -4,7 +4,7 @@ import { Space_Grotesk } from "next/font/google"; // Import Font
 import { ArrowUpRight, TrendingDown, Wallet, CreditCard, Activity, Calendar } from "lucide-react";
 
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] }); // Initialize Font
-import VoiceRecorder from "@/components/voice/VoiceRecorder"; // Ensure this matches creation path
+
 import BudgetCard from "@/components/dashboard/BudgetCard";
 import MonthNavigation from "@/components/shared/MonthNavigation"; // Import the new component
 import DeleteButton from "@/components/shared/DeleteButton";
@@ -180,7 +180,7 @@ export default async function Dashboard({ searchParams }) {
       </main>
 
       {/* Floating Recorder */}
-      <VoiceRecorder onSave={createTransaction} />
+
     </div>
   );
 }
