@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, CreditCard, Filter } from "lucide-react";
-import MonthNavigation from "@/components/shared/MonthNavigation"; // Import MonthNavigation
+import MonthNavigation from "@/components/shared/MonthNavigation"; // Importar MonthNavigation
 import DeleteButton from "@/components/shared/DeleteButton";
 import { prisma } from "@/lib/prisma";
 import { formatCLP, cn } from "@/lib/utils";
@@ -41,7 +41,7 @@ export default async function VisaPage({ searchParams }) {
 
     return (
         <div className="min-h-screen pb-10 bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200 relative overflow-hidden">
-            {/* Background Decor */}
+            {/* Decoración de fondo */}
             <div className="fixed top-[-20%] left-[20%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
 
@@ -56,26 +56,26 @@ export default async function VisaPage({ searchParams }) {
                             <p className="text-xs text-slate-500">Resumen mensual de tarjeta</p>
                         </div>
                     </div>
-                    {/* Optional: Add extra header action here */}
+                    {/* Opcional: Agregar acción extra de encabezado aquí */}
                 </div>
             </header>
 
             <main className="px-6 mt-8 max-w-5xl mx-auto w-full relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-                    {/* Left Column: Card Summary */}
+                    {/* Columna Izquierda: Resumen de Tarjeta */}
                     <div className="md:col-span-1 space-y-6">
-                        {/* Month Navigation - Centered or Top aligned */}
+                        {/* Navegación de Mes - Centrado o Alineado arriba */}
                         <div className="flex justify-center md:justify-start">
                             <MonthNavigation currentDate={currentDate} baseUrl="/visa" />
                         </div>
 
-                        {/* VISA Card Visual */}
+                        {/* Visual de Tarjeta VISA */}
                         <div className="relative p-6 rounded-3xl bg-gradient-to-br from-blue-700 to-[#0a0b1e] text-white shadow-2xl shadow-blue-900/20 overflow-hidden sticky top-28 border border-white/10 group">
-                            {/* Glossy Overlay */}
+                            {/* Superposición Brillante */}
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-50 pointer-events-none"></div>
 
-                            {/* Decorative circles */}
+                            {/* Círculos decorativos */}
                             <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-colors"></div>
                             <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl"></div>
 
@@ -100,7 +100,7 @@ export default async function VisaPage({ searchParams }) {
                         </div>
                     </div>
 
-                    {/* Right Column: Transactions List */}
+                    {/* Columna Derecha: Lista de Transacciones */}
                     <div className="md:col-span-2">
                         <div className="bg-[#1f2029] rounded-[2.5rem] p-8 border border-white/5 shadow-2xl shadow-black/20">
                             <div className="flex items-center justify-between mb-8">

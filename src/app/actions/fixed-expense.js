@@ -15,7 +15,7 @@ export async function getFixedExpenses(month, year) {
         }
     });
 
-    // Merge expenses with their payment status
+    // Fusionar gastos con su estado de pago
     return expenses.map(expense => {
         const payment = payments.find(p => p.fixedExpenseId === expense.id);
         return {
@@ -27,7 +27,7 @@ export async function getFixedExpenses(month, year) {
 }
 
 export async function toggleFixedExpensePayment(expenseId, month, year, isPaid) {
-    // Check if payment record exists
+    // Verificar si el registro de pago existe
     const existingPayment = await prisma.fixedExpensePayment.findUnique({
         where: {
             fixedExpenseId_month_year: {

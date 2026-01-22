@@ -3,10 +3,10 @@ import { getFixedExpenses } from "@/app/actions/fixed-expense";
 import { Wallet } from "lucide-react";
 
 export default async function FixedExpensesList({ currentDate }) {
-    const month = currentDate.getMonth() + 1; // 1-indexed for DB
+    const month = currentDate.getMonth() + 1; // base-1 para BD
     const year = currentDate.getFullYear();
 
-    // Fetch data inside the server component
+    // Obtener datos dentro del componente del servidor
     const expenses = await getFixedExpenses(month, year);
 
     const total = expenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -32,7 +32,7 @@ export default async function FixedExpensesList({ currentDate }) {
                 </div>
             </div>
 
-            {/* Grid Layout */}
+            {/* Diseño en Cuadrícula */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-2">
                 {expenses.map((expense) => (
                     <FixedExpenseCard key={expense.id} expense={expense} month={month} year={year} />

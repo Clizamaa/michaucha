@@ -17,7 +17,7 @@ async function getTransactions() {
         include: { category: true }
     });
 
-    // Group by date
+    // Agrupar por fecha
     const grouped = transactions.reduce((acc, t) => {
         const dateKey = new Date(t.date).toLocaleDateString('es-CL', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -36,7 +36,7 @@ export default async function GastosPage() {
 
     return (
         <div className="min-h-screen pb-20 bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200 relative overflow-hidden">
-            {/* Background Decor */}
+            {/* Decoración de fondo */}
             <div className="fixed top-[-20%] right-[20%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="fixed bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
 
@@ -53,7 +53,7 @@ export default async function GastosPage() {
             <div className="px-6 mt-8 space-y-10 relative z-10 max-w-3xl mx-auto">
                 {Object.entries(groupedTransactions).map(([date, items]) => (
                     <div key={date} className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-                        {/* Vertical line connecting groups */}
+                        {/* Línea vertical conectando grupos */}
                         <div className="absolute left-6 top-10 bottom-0 w-px bg-white/5 -z-10" />
 
                         <div className="flex items-center gap-3 mb-4 text-slate-400 font-bold text-xs uppercase tracking-widest sticky top-20 bg-[#0f1023]/95 backdrop-blur-md py-3 z-10 w-fit pr-4 rounded-r-xl border-y border-transparent">

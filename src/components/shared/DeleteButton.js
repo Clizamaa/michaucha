@@ -8,7 +8,7 @@ export default function DeleteButton({ id, className }) {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async (e) => {
-        e.preventDefault(); // Prevent link navigation if inside a link
+        e.preventDefault(); // Prevenir navegación de enlace si está dentro de un enlace
         e.stopPropagation();
 
         if (!confirm("¿Estás seguro de eliminar este gasto?")) return;

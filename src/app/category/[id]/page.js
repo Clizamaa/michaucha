@@ -15,13 +15,13 @@ export default async function CategoryPage({ params, searchParams }) {
 
     return (
         <div className="min-h-screen pb-24 relative overflow-hidden bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200">
-            {/* Background Decor */}
+            {/* Decoración de fondo */}
             <div className="fixed top-[-10%] right-[-5%] w-[300px] h-[300px] bg-purple-300/30 rounded-full blur-3xl pointer-events-none" />
             <div className="fixed top-[20%] left-[-10%] w-[250px] h-[250px] bg-blue-300/30 rounded-full blur-3xl pointer-events-none" />
 
             <main className="px-6 space-y-8 relative z-10 max-w-7xl mx-auto w-full mt-8">
 
-                {/* Header & Nav */}
+                {/* Encabezado y Navegación */}
                 <div className="flex flex-col gap-6">
                     <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium w-fit">
                         <ArrowLeft size={16} />
@@ -37,13 +37,13 @@ export default async function CategoryPage({ params, searchParams }) {
                     </div>
                 </div>
 
-                {/* Total Card */}
+                {/* Tarjeta Total */}
                 <div className="p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20">
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Total del Mes</p>
                     <p className="text-4xl text-white font-mono font-bold">{formatCLP(total)}</p>
                 </div>
 
-                {/* Transactions List */}
+                {/* Lista de Transacciones */}
                 <div className="bg-[#1f2029] rounded-[2.5rem] p-8 border border-white/5 shadow-2xl shadow-black/20">
                     <h3 className="font-bold text-white text-xl mb-6">Transacciones</h3>
 

@@ -1,15 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Space_Grotesk } from "next/font/google"; // Import Font
+import { Space_Grotesk } from "next/font/google";
 import { ArrowUpRight, TrendingDown, Wallet, CreditCard, Activity, Calendar } from "lucide-react";
 
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] }); // Initialize Font
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 
 import BudgetCard from "@/components/dashboard/BudgetCard";
-import MonthNavigation from "@/components/shared/MonthNavigation"; // Import the new component
+import MonthNavigation from "@/components/shared/MonthNavigation";
 import DeleteButton from "@/components/shared/DeleteButton";
-import { getDashboardData, createTransaction } from "@/app/actions/transaction"; // Verify path
-import FixedExpensesList from "@/components/dashboard/FixedExpensesList"; // Import new component
+import { getDashboardData, createTransaction } from "@/app/actions/transaction";
+import FixedExpensesList from "@/components/dashboard/FixedExpensesList";
 import { formatCLP, cn } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
@@ -29,11 +29,11 @@ export default async function Dashboard({ searchParams }) {
   return (
     <div className="min-h-screen pb-24 relative overflow-hidden bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200">
 
-      {/* Background Decor */}
+      {/* fondo */}
       <div className="fixed top-[-10%] right-[-5%] w-[300px] h-[300px] bg-purple-300/30 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed top-[20%] left-[-10%] w-[250px] h-[250px] bg-blue-300/30 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header */}
+      {/* Encabezado */}
       <header className="py-6 sticky top-0 bg-[#0f1023]/80 backdrop-blur-md z-30 border-b border-white/5">
         <div className="max-w-7xl mx-auto w-full px-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -45,19 +45,11 @@ export default async function Dashboard({ searchParams }) {
                 className="object-cover"
               />
             </div>
-            {/* <div className="relative h-27 w-80">
-              <Image
-                src="/tituloo.png"
-                alt="Michaucha"
-                fill
-                className="object-contain object-left"
-                priority
-              />
-            </div> */}
+
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Search or Notifications Mock */}
+            {/* Búsqueda o Simulación de Notificaciones */}
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 p-[2px]">
               <div className="w-full h-full rounded-full bg-[#0f1023] flex items-center justify-center text-white font-bold text-xs">
                 CH
@@ -69,20 +61,20 @@ export default async function Dashboard({ searchParams }) {
 
       <main className="px-6 space-y-8 relative z-10 max-w-7xl mx-auto w-full mt-8">
 
-        {/* Month Navigation - Moved here */}
+        {/* Navegación de mes*/}
         <div className="flex items-center gap-4 mb-4">
           <MonthNavigation currentDate={currentDate} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Total Card - Spans 2 cols on Desktop */}
+          {/* Tarjeta de total - Ocupa 2 columnas en escritorio */}
           <div className="lg:col-span-2 h-full">
             <BudgetCard summary={summary} />
           </div>
 
-          {/* Stacked Info Cards */}
+          {/* Tarjetas de información apiladas */}
           <div className="flex flex-col gap-6 h-full">
-            {/* Top Gasto */}
+            {/* Gasto principal */}
             <Link
               href={summary.maxExpense.categoryId ? `/category/${summary.maxExpense.categoryId}` : '#'}
               className="flex-1 p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 flex flex-col justify-between group hover:border-white/10 transition-colors cursor-pointer"
@@ -101,7 +93,7 @@ export default async function Dashboard({ searchParams }) {
               </div>
             </Link>
 
-            {/* VISA Shortcut */}
+            {/* Acceso directo a VISA */}
             <Link href="/visa" className="flex-1 p-6 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 flex flex-col justify-between group hover:bg-[#252636] transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                 <CreditCard size={100} />
@@ -123,10 +115,10 @@ export default async function Dashboard({ searchParams }) {
           </div>
         </div>
 
-        {/* Fixed Expenses Section */}
+        {/* Sección de Gastos Fijos */}
         <FixedExpensesList currentDate={currentDate} />
 
-        {/* Recent Transactions Table Style */}
+        {/* Estilo de tabla de transacciones recientes */}
         <div className="bg-[#1f2029] rounded-[2.5rem] p-8 border border-white/5 shadow-2xl shadow-black/20">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -179,7 +171,6 @@ export default async function Dashboard({ searchParams }) {
 
       </main>
 
-      {/* Floating Recorder */}
 
     </div>
   );

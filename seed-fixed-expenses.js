@@ -16,15 +16,15 @@ async function main() {
     console.log('Seeding fixed expenses...');
     for (const expense of expenses) {
         await prisma.fixedExpense.upsert({
-            where: { id: 0 }, // Hacky way to force create if not matching unique, but name isn't unique in schema.
-            // Better to check if exists by name or just create.
-            // Since schema doesn't have unique name, upsert is tricky without a unique field.
-            // Let's change to createMany or check first.
+            where: { id: 0 }, // Forma "sucia" de forzar creación si no coincide único, pero el nombre no es único en el esquema.
+            // Mejor verificar si existe por nombre o simplemente crear.
+            // Dado que el esquema no tiene nombre único, upsert es complicado sin un campo único.
+            // Cambiemos a createMany o verificar primero.
             update: {},
             create: expense,
         }).catch(async () => {
-            // Fallback if upsert fails or logic change
-            // Actually, let's just findFirst and create if missing
+            // Retroceder si falla upsert o cambia lógica
+            // En realidad, solo busquemos primero y creemos si falta
             const existing = await prisma.fixedExpense.findFirst({ where: { name: expense.name } });
             if (!existing) {
                 await prisma.fixedExpense.create({ data: expense });
@@ -35,7 +35,7 @@ async function main() {
         });
     }
 
-    // Re-write main properly to avoid that ugly catch/upsert logic
+    // Reescribir main correctamente para evitar esa lógica fea de catch/upsert
 }
 
 async function mainCorrect() {

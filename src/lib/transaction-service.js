@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 
 export const TransactionService = {
     /**
-     * Creates a new transaction with category resolution logic
+     * Crea una nueva transacción con lógica de resolución de categoría
      * @param {Object} data - { amount, category, date, description, paymentMethod }
      */
     async createTransaction(data) {
@@ -12,20 +12,20 @@ export const TransactionService = {
 
             const categoryName = data.category || "Gastos varios";
 
-            // 1. Resolve Category
+            // 1. Resolver Categoría
             let category = await prisma.category.findUnique({
                 where: { name: categoryName }
             });
 
             if (!category) {
-                // Fallback to "Gastos varios" if specific category not found
-                // In production, we assume fixed categories are seeded.
+                // Retroceder a "Gastos varios" si no se encuentra la categoría específica
+                // En producción, asumimos que las categorías fijas están sembradas (seeded).
                 console.warn(`Category '${categoryName}' not found. Falling back to 'Gastos varios'.`);
                 category = await prisma.category.findUnique({
                     where: { name: "Gastos varios" }
                 });
 
-                // If still missing (critical failure in seeding), create placeholder (dev only safety)
+                // Si aún falta (fallo crítico en seeding), crear marcador de posición (seguridad solo desarrollo)
                 if (!category && process.env.NODE_ENV !== 'production') {
                     category = await prisma.category.create({ data: { name: categoryName } });
                 }
@@ -33,7 +33,7 @@ export const TransactionService = {
 
             if (!category) throw new Error("Category resolution failed. Database might need seeding.");
 
-            // 2. Create Transaction
+            // 2. Crear Transacción
             const transaction = await prisma.transaction.create({
                 data: {
                     amount: data.amount,
@@ -45,7 +45,7 @@ export const TransactionService = {
                 include: { category: true }
             });
 
-            // 3. Revalidate Paths
+            // 3. Revalidar Rutas
             revalidatePath('/');
             revalidatePath('/gastos');
             revalidatePath('/visa');

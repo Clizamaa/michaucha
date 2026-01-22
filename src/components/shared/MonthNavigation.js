@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MonthNavigation({ currentDate, baseUrl = "/" }) {
-    // Month Navigation
+    // Navegación de Mes
     const prevMonthDate = new Date(currentDate);
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
 
     const nextMonthDate = new Date(currentDate);
     nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
 
-    // Year Navigation
+    // Navegación de Año
     const prevYearDate = new Date(currentDate);
     prevYearDate.setFullYear(prevYearDate.getFullYear() - 1);
 
@@ -18,7 +18,7 @@ export default function MonthNavigation({ currentDate, baseUrl = "/" }) {
 
     const today = new Date();
 
-    // Helper to generate URL
+    // Ayudante para generar URL
     const getUrl = (date) => `${baseUrl}?year=${date.getFullYear()}&month=${date.getMonth() + 1}`;
 
     const isNextMonthFuture = nextMonthDate.getFullYear() > today.getFullYear() ||
@@ -33,7 +33,7 @@ export default function MonthNavigation({ currentDate, baseUrl = "/" }) {
 
     return (
         <div className="flex items-center gap-2">
-            {/* Month Selector */}
+            {/* Selector de Mes */}
             <div className={containerClass}>
                 <Link href={getUrl(prevMonthDate)} className={buttonClass} title="Mes Anterior">
                     <ChevronLeft size={18} />
@@ -54,7 +54,7 @@ export default function MonthNavigation({ currentDate, baseUrl = "/" }) {
                 )}
             </div>
 
-            {/* Year Selector */}
+            {/* Selector de Año */}
             <div className={containerClass}>
                 <Link href={getUrl(prevYearDate)} className={buttonClass} title="Año Anterior">
                     <ChevronLeft size={18} />

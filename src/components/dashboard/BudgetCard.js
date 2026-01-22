@@ -23,7 +23,7 @@ export default function BudgetCard({ summary }) {
 
     return (
         <div className="md:col-span-2 p-8 rounded-[2rem] bg-[#1f2029] border border-white/5 shadow-2xl shadow-black/20 relative overflow-hidden group hover:border-white/10 transition-all">
-            {/* Background Decor */}
+            {/* Decoración de fondo */}
             <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[80px] pointer-events-none" />
 
             <div className="relative z-10">
@@ -83,7 +83,7 @@ export default function BudgetCard({ summary }) {
                 )}
 
                 <div className="space-y-6">
-                    {/* Progress Stats */}
+                    {/* Estadísticas de Progreso */}
                     <div>
                         <div className="flex justify-between text-sm font-medium mb-3">
                             <span className="text-slate-400">Gastado: <span className="text-white ml-1">{formatCLP(summary.monthTotal)}</span></span>
@@ -99,7 +99,7 @@ export default function BudgetCard({ summary }) {
                         </div>
                     </div>
 
-                    {/* Footer Stats */}
+                    {/* Estadísticas de Pie de Página */}
                     <div className="flex items-center gap-6 pt-4 border-t border-white/5">
                         <div>
                             <p className="text-xs text-slate-500 mb-1">Sueldo Mensual</p>

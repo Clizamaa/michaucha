@@ -46,7 +46,7 @@ export default function FixedExpenseCard({ expense, month, year }) {
                 ? "bg-emerald-900/10 border-emerald-500/20 hover:border-emerald-500/40"
                 : "bg-[#1f2029] border-white/5 hover:border-white/10"
         )}>
-            {/* Status Indicator Line */}
+            {/* Línea Indicadora de Estado */}
             <div className={cn(
                 "absolute top-0 left-0 w-full h-1 rounded-t-2xl transition-colors",
                 isPaid ? "bg-emerald-500" : "bg-red-500/50"
