@@ -11,6 +11,8 @@ export async function deleteTransaction(id) {
     return await TransactionService.deleteTransaction(id);
 }
 
+// ... (imports remain)
+
 export async function getDashboardData(date = new Date()) {
     const year = date.getFullYear();
     const month = date.getMonth(); // base-0
@@ -18,6 +20,7 @@ export async function getDashboardData(date = new Date()) {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 1); // Primer día del siguiente mes (exclusivo para <)
 
+    // 1. Obtener Transacciones Reales
     const transactions = await prisma.transaction.findMany({
         where: {
             date: {
@@ -29,12 +32,43 @@ export async function getDashboardData(date = new Date()) {
         orderBy: { date: 'desc' }
     });
 
-    const total = transactions.reduce((acc, curr) => acc + curr?.amount || 0, 0);
+    let transactionTotal = transactions.reduce((acc, curr) => acc + curr?.amount || 0, 0);
 
-    // Lógica de Promedio Diario
+    // 2. Obtener Gastos Fijos Pagados
+    const paidFixedExpensesStats = await prisma.fixedExpensePayment.findMany({
+        where: {
+            month: month + 1,
+            year: year,
+            isPaid: true
+        },
+        include: {
+            fixedExpense: true
+        }
+    });
+
+    // 3. Calcular "Gasto Virtual"
+    // Sumamos el valor del gasto fijo SOLO si no hay una transacción con esa categoría
+    // Esto evita doble contabilidad
+    let virtualFixedTotal = 0;
+
+    // Crear un Set de nombres de categorías que tienen transacciones este mes para búsqueda rápida
+    const transactionCategoryNames = new Set(transactions.map(t => t.category.name.toLowerCase()));
+
+    for (const payment of paidFixedExpensesStats) {
+        const expenseName = payment.fixedExpense.name;
+        // Normalizamos comparación
+        if (!transactionCategoryNames.has(expenseName.toLowerCase())) {
+            // Si está pagado pero NO hay transacción, sumamos el monto base del gasto fijo
+            virtualFixedTotal += payment.fixedExpense.amount;
+        }
+    }
+
+    const totalGastadoReal = transactionTotal + virtualFixedTotal;
+
+    // Lógica de Promedio Diario (Usando el total real)
     const isCurrentMonth = new Date().getMonth() === month && new Date().getFullYear() === year;
     const daysPassed = isCurrentMonth ? new Date().getDate() : new Date(year, month + 1, 0).getDate(); // Días en el mes si ya pasó
-    const dailyAverage = daysPassed > 0 ? total / daysPassed : 0;
+    const dailyAverage = daysPassed > 0 ? totalGastadoReal / daysPassed : 0;
 
     const maxTransaction = transactions.length > 0 ? transactions.reduce((prev, current) => (prev.amount > current.amount) ? prev : current) : null;
 
@@ -48,18 +82,18 @@ export async function getDashboardData(date = new Date()) {
     });
 
     const budget = budgetRecord ? budgetRecord.amount : 0;
-    const remaining = budget - total;
+    const remaining = budget - totalGastadoReal;
 
     return {
         summary: {
-            monthTotal: total,
+            monthTotal: totalGastadoReal, // Ahora incluye lo virtual
             budget,
             remaining,
             diffPercent: 0,
             dailyAverage: Math.round(dailyAverage),
             maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId } : { category: '-', amount: 0, categoryId: null }
         },
-        recentTransactions: transactions // Retorna todo para la vista mensual, ¿o quizás aún recortar? Retornemos todo para "Recientes" en el contexto del mes
+        recentTransactions: transactions // Retorna todo para la vista mensual
     };
 }
 
