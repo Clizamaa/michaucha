@@ -6,7 +6,7 @@ import { ArrowUpRight, TrendingDown, Wallet, CreditCard, Activity, Calendar } fr
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 
 import BudgetCard from "@/components/dashboard/BudgetCard";
-import MonthNavigation from "@/components/shared/MonthNavigation";
+import ClosePeriodButton from "@/components/dashboard/ClosePeriodButton";
 import DeleteButton from "@/components/shared/DeleteButton";
 import { getDashboardData, createTransaction } from "@/app/actions/transaction";
 import FixedExpensesList from "@/components/dashboard/FixedExpensesList";
@@ -16,15 +16,16 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Dashboard | Michaucha',
-  description: 'Control de gastos personales y presupuesto mensual.',
+  description: 'Control de gastos personales y periodo financiero.',
 };
 
-export default async function Dashboard({ searchParams }) {
-  const { year, month } = await searchParams;
-  const currentDate = (year && month) ? new Date(parseInt(year), parseInt(month) - 1, 1) : new Date();
+export default async function Dashboard() {
+  // Ya no usamos searchParams para year/month, usamos el periodo actual por defecto.
+  // Futura mejora: permitir history/buscar por periodo ID.
 
-  const data = await getDashboardData(currentDate);
+  const data = await getDashboardData();
   const { summary, recentTransactions } = data;
+  const { periodValues } = summary;
 
   return (
     <div className="min-h-screen pb-24 relative overflow-hidden bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200">
@@ -49,6 +50,7 @@ export default async function Dashboard({ searchParams }) {
           </div>
 
           <div className="flex items-center gap-4">
+            <ClosePeriodButton />
             {/* Búsqueda o Simulación de Notificaciones */}
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 p-[2px]">
               <div className="w-full h-full rounded-full bg-[#0f1023] flex items-center justify-center text-white font-bold text-xs">
@@ -61,9 +63,15 @@ export default async function Dashboard({ searchParams }) {
 
       <main className="px-6 space-y-8 relative z-10 max-w-7xl mx-auto w-full mt-8">
 
-        {/* Navegación de mes*/}
-        <div className="flex items-center gap-4 mb-4">
-          <MonthNavigation currentDate={currentDate} />
+        {/* Info del Periodo */}
+        <div className="flex items-center gap-2 mb-4 text-slate-400 text-sm">
+          <Calendar size={16} />
+          {periodValues && (
+            <span>
+              Periodo: {new Date(periodValues.startDate).toLocaleDateString()} - {periodValues.endDate ? new Date(periodValues.endDate).toLocaleDateString() : 'Presente'}
+              {!periodValues.isActive && <span className="ml-2 text-red-500">(Cerrado)</span>}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -116,14 +124,14 @@ export default async function Dashboard({ searchParams }) {
         </div>
 
         {/* Sección de Gastos Fijos */}
-        <FixedExpensesList currentDate={currentDate} />
+        <FixedExpensesList />
 
         {/* Estilo de tabla de transacciones recientes */}
         <div className="bg-[#1f2029] rounded-[2.5rem] p-8 border border-white/5 shadow-2xl shadow-black/20">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="font-bold text-white text-xl">Recientes</h3>
-              <p className="text-slate-500 text-sm mt-1">Últimos movimientos del mes</p>
+              <p className="text-slate-500 text-sm mt-1">Últimos movimientos del periodo</p>
             </div>
             <Link href="/gastos" className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition-colors shadow-lg shadow-blue-500/20">
               Ver Todo

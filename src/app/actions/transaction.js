@@ -2,6 +2,7 @@
 
 import { TransactionService } from "@/lib/transaction-service";
 import { prisma } from "@/lib/prisma";
+import { getCurrentPeriod } from "./period";
 
 export async function createTransaction(data) {
     return await TransactionService.createTransaction(data);
@@ -13,19 +14,42 @@ export async function deleteTransaction(id) {
 
 // ... (imports remain)
 
-export async function getDashboardData(date = new Date()) {
-    const year = date.getFullYear();
-    const month = date.getMonth(); // base-0
+export async function getDashboardData(periodId = null) {
+    let activePeriod;
 
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 1); // Primer día del siguiente mes (exclusivo para <)
+    if (periodId) {
+        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodId) } });
+    } else {
+        activePeriod = await getCurrentPeriod();
+    }
 
-    // 1. Obtener Transacciones Reales
+    if (!activePeriod) {
+        // Fallback si no hay periodos (recién inicializado)
+        return {
+            summary: {
+                monthTotal: 0,
+                budget: 0,
+                remaining: 0,
+                diffPercent: 0,
+                dailyAverage: 0,
+                maxExpense: { category: '-', amount: 0, categoryId: null }
+            },
+            recentTransactions: []
+        };
+    }
+
+    const startDate = activePeriod.startDate;
+    const endDate = activePeriod.endDate || new Date(); // Si está activo, hasta hoy para filtro
+
+    // 1. Obtener Transacciones Reales dentro del Periodo
     const transactions = await prisma.transaction.findMany({
         where: {
             date: {
-                gte: firstDay,
-                lt: lastDay
+                gte: startDate,
+                // Si el periodo está cerrado, usamos su fecha fin. Si está activo, no ponemos límite superior estricto 
+                // o usamos ahora? Generalmente queremos ver todo lo de ese periodo.
+                // Si está cerrado activePeriod.endDate no es null.
+                ...(activePeriod.endDate ? { lte: activePeriod.endDate } : {})
             }
         },
         include: { category: true },
@@ -34,11 +58,10 @@ export async function getDashboardData(date = new Date()) {
 
     let transactionTotal = transactions.reduce((acc, curr) => acc + curr?.amount || 0, 0);
 
-    // 2. Obtener Gastos Fijos Pagados
+    // 2. Obtener Gastos Fijos Pagados en este Periodo
     const paidFixedExpensesStats = await prisma.fixedExpensePayment.findMany({
         where: {
-            month: month + 1,
-            year: year,
+            periodId: activePeriod.id,
             isPaid: true
         },
         include: {
@@ -47,37 +70,31 @@ export async function getDashboardData(date = new Date()) {
     });
 
     // 3. Calcular "Gasto Virtual"
-    // Sumamos el valor del gasto fijo SOLO si no hay una transacción con esa categoría
-    // Esto evita doble contabilidad
     let virtualFixedTotal = 0;
-
-    // Crear un Set de nombres de categorías que tienen transacciones este mes para búsqueda rápida
     const transactionCategoryNames = new Set(transactions.map(t => t.category.name.toLowerCase()));
 
     for (const payment of paidFixedExpensesStats) {
         const expenseName = payment.fixedExpense.name;
-        // Normalizamos comparación
         if (!transactionCategoryNames.has(expenseName.toLowerCase())) {
-            // Si está pagado pero NO hay transacción, sumamos el monto base del gasto fijo
             virtualFixedTotal += payment.fixedExpense.amount;
         }
     }
 
     const totalGastadoReal = transactionTotal + virtualFixedTotal;
 
-    // Lógica de Promedio Diario (Usando el total real)
-    const isCurrentMonth = new Date().getMonth() === month && new Date().getFullYear() === year;
-    const daysPassed = isCurrentMonth ? new Date().getDate() : new Date(year, month + 1, 0).getDate(); // Días en el mes si ya pasó
+    // Lógica de Promedio Diario
+    // Días transcurridos = (ahora - inicio) ó (fin - inicio)
+    const endCalculationDate = activePeriod.endDate || new Date();
+    const diffTime = Math.abs(endCalculationDate - startDate);
+    const daysPassed = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Al menos 1 día
+
     const dailyAverage = daysPassed > 0 ? totalGastadoReal / daysPassed : 0;
 
     const maxTransaction = transactions.length > 0 ? transactions.reduce((prev, current) => (prev.amount > current.amount) ? prev : current) : null;
 
     const budgetRecord = await prisma.monthlyBudget.findUnique({
         where: {
-            month_year: {
-                month: month + 1, // base-1 para BD
-                year: year
-            }
+            periodId: activePeriod.id
         }
     });
 
@@ -86,32 +103,46 @@ export async function getDashboardData(date = new Date()) {
 
     return {
         summary: {
-            monthTotal: totalGastadoReal, // Ahora incluye lo virtual
+            monthTotal: totalGastadoReal,
             budget,
             remaining,
+            savingsGoal: activePeriod.savingsGoal, // NEW field
             diffPercent: 0,
             dailyAverage: Math.round(dailyAverage),
-            maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId } : { category: '-', amount: 0, categoryId: null }
+            maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId } : { category: '-', amount: 0, categoryId: null },
+            periodValues: { // Info extra para el frontend
+                startDate: activePeriod.startDate,
+                endDate: activePeriod.endDate,
+                isActive: activePeriod.isActive
+            }
         },
-        recentTransactions: transactions // Retorna todo para la vista mensual
+        recentTransactions: transactions
     };
 }
 
-export async function getCategoryTransactions(categoryId, date = new Date()) {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+export async function getCategoryTransactions(categoryId, periodId = null) {
+    let activePeriod;
+    if (periodId) {
+        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodId) } });
+    } else {
+        activePeriod = await getCurrentPeriod();
+    }
 
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 1);
+    const startDate = activePeriod ? activePeriod.startDate : new Date();
+    // Si no hay periodo, un fallback seguro?
+
+    const whereClause = {
+        categoryId: parseInt(categoryId),
+        ...(activePeriod ? {
+            date: {
+                gte: startDate,
+                ...(activePeriod.endDate ? { lte: activePeriod.endDate } : {})
+            }
+        } : {})
+    };
 
     const transactions = await prisma.transaction.findMany({
-        where: {
-            categoryId: parseInt(categoryId),
-            date: {
-                gte: firstDay,
-                lt: lastDay
-            }
-        },
+        where: whereClause,
         include: { category: true },
         orderBy: { date: 'desc' }
     });

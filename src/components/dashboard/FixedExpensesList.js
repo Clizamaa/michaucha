@@ -1,13 +1,18 @@
 import FixedExpenseCard from "./FixedExpenseCard";
 import { getFixedExpenses } from "@/app/actions/fixed-expense";
+import { getCurrentPeriod } from "@/app/actions/period";
 import { Wallet } from "lucide-react";
 
-export default async function FixedExpensesList({ currentDate }) {
-    const month = currentDate.getMonth() + 1; // base-1 para BD
-    const year = currentDate.getFullYear();
+export default async function FixedExpensesList({ periodId }) {
+    // Si no viene periodId, buscamos el actual
+    let currentPeriodId = periodId;
+    if (!currentPeriodId) {
+        const period = await getCurrentPeriod();
+        currentPeriodId = period.id;
+    }
 
     // Obtener datos dentro del componente del servidor
-    const expenses = await getFixedExpenses(month, year);
+    const expenses = await getFixedExpenses(currentPeriodId);
 
     const total = expenses.reduce((acc, curr) => acc + curr.amount, 0);
     const paidTotal = expenses.filter(e => e.isPaid).reduce((acc, curr) => acc + curr.amount, 0);
@@ -35,7 +40,7 @@ export default async function FixedExpensesList({ currentDate }) {
             {/* Diseño en Cuadrícula */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-2">
                 {expenses.map((expense) => (
-                    <FixedExpenseCard key={expense.id} expense={expense} month={month} year={year} />
+                    <FixedExpenseCard key={expense.id} expense={expense} periodId={currentPeriodId} />
                 ))}
             </div>
         </div>

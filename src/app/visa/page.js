@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, CreditCard, Filter } from "lucide-react";
-import MonthNavigation from "@/components/shared/MonthNavigation"; // Importar MonthNavigation
+import { ArrowLeft, CreditCard, Filter, Calendar } from "lucide-react";
 import DeleteButton from "@/components/shared/DeleteButton";
 import { prisma } from "@/lib/prisma";
 import { formatCLP, cn } from "@/lib/utils";
+import { getCurrentPeriod } from "@/app/actions/period";
 
 export const metadata = {
     title: 'Movimientos VISA | Michaucha',
@@ -12,32 +12,41 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic';
 
-async function getVisaData(date = new Date()) {
-    const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-    const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+async function getVisaData(periodId = null) {
+    let activePeriod;
+
+    if (periodId) {
+        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodId) } });
+    } else {
+        activePeriod = await getCurrentPeriod();
+    }
+
+    // Fallback si no hay periodo
+    const startDate = activePeriod ? activePeriod.startDate : new Date();
+    const endDate = activePeriod && activePeriod.endDate ? activePeriod.endDate : undefined;
+
+    const whereClause = {
+        paymentMethod: 'VISA',
+        date: {
+            gte: startDate,
+            ...(endDate ? { lte: endDate } : {})
+        }
+    };
 
     const transactions = await prisma.transaction.findMany({
-        where: {
-            paymentMethod: 'VISA',
-            date: {
-                gte: startDate,
-                lt: endDate
-            }
-        },
+        where: whereClause,
         orderBy: { date: 'desc' },
         include: { category: true }
     });
 
     const total = transactions.reduce((acc, t) => acc + t.amount, 0);
 
-    return { transactions, total };
+    return { transactions, total, activePeriod };
 }
 
-export default async function VisaPage({ searchParams }) {
-    const { year, month } = await searchParams;
-    const currentDate = (year && month) ? new Date(parseInt(year), parseInt(month) - 1, 1) : new Date();
-
-    const { transactions, total } = await getVisaData(currentDate);
+export default async function VisaPage() {
+    // Usamos el periodo actual por defecto
+    const { transactions, total, activePeriod } = await getVisaData();
 
     return (
         <div className="min-h-screen pb-10 bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200 relative overflow-hidden">
@@ -53,7 +62,7 @@ export default async function VisaPage({ searchParams }) {
                         </Link>
                         <div>
                             <h1 className="text-xl font-bold text-white tracking-wide">Movimientos VISA</h1>
-                            <p className="text-xs text-slate-500">Resumen mensual de tarjeta</p>
+                            <p className="text-xs text-slate-500">Resumen del periodo actual</p>
                         </div>
                     </div>
                     {/* Opcional: Agregar acción extra de encabezado aquí */}
@@ -65,9 +74,16 @@ export default async function VisaPage({ searchParams }) {
 
                     {/* Columna Izquierda: Resumen de Tarjeta */}
                     <div className="md:col-span-1 space-y-6">
-                        {/* Navegación de Mes - Centrado o Alineado arriba */}
-                        <div className="flex justify-center md:justify-start">
-                            <MonthNavigation currentDate={currentDate} baseUrl="/visa" />
+                        {/* Info Periodo */}
+                        <div className="flex justify-center md:justify-start text-slate-400 text-xs items-center gap-2">
+                            <Calendar size={14} />
+                            {activePeriod ? (
+                                <span>
+                                    {new Date(activePeriod.startDate).toLocaleDateString()} - {activePeriod.endDate ? new Date(activePeriod.endDate).toLocaleDateString() : 'Presente'}
+                                </span>
+                            ) : (
+                                <span>-</span>
+                            )}
                         </div>
 
                         {/* Visual de Tarjeta VISA */}
@@ -87,7 +103,7 @@ export default async function VisaPage({ searchParams }) {
 
                                 <div className="mb-8">
                                     <p className="text-blue-200/60 text-[10px] uppercase tracking-widest mb-1">
-                                        Total Facturado
+                                        Total Facturado (Periodo)
                                     </p>
                                     <p className="text-4xl font-mono font-bold tracking-tight text-white drop-shadow-lg">{formatCLP(total)}</p>
                                 </div>
@@ -140,7 +156,7 @@ export default async function VisaPage({ searchParams }) {
                                         <div className="p-4 bg-white/5 rounded-full">
                                             <CreditCard className="w-8 h-8 opacity-30" />
                                         </div>
-                                        <p className="text-sm">No hay compras con VISA este mes.</p>
+                                        <p className="text-sm">No hay compras con VISA este periodo.</p>
                                     </div>
                                 )}
                             </div>

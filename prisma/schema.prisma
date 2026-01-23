@@ -28,15 +28,28 @@ model Transaction {
   @@index([categoryId])
 }
 
+model Period {
+  id          Int      @id @default(autoincrement())
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  savingsGoal Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payments FixedExpensePayment[]
+  budgets  MonthlyBudget[]
+}
+
 model MonthlyBudget {
   id        Int      @id @default(autoincrement())
-  month     Int
-  year      Int
   amount    Int
+  periodId  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  period    Period   @relation(fields: [periodId], references: [id])
 
-  @@unique([month, year])
+  @@unique([periodId])
 }
 
 model FixedExpense {
@@ -51,15 +64,15 @@ model FixedExpense {
 model FixedExpensePayment {
   id             Int          @id @default(autoincrement())
   fixedExpenseId Int
-  month          Int
-  year           Int
+  periodId       Int
   isPaid         Boolean      @default(false)
   paidAt         DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   fixedExpense   FixedExpense @relation(fields: [fixedExpenseId], references: [id])
+  period         Period       @relation(fields: [periodId], references: [id])
 
-  @@unique([fixedExpenseId, month, year])
+  @@unique([fixedExpenseId, periodId])
 }
 
 enum PaymentMethod {

@@ -2,16 +2,21 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentPeriod } from "./period";
 
-export async function getFixedExpenses(month, year) {
+export async function getFixedExpenses(periodId) {
+    if (!periodId) {
+        const currentPeriod = await getCurrentPeriod();
+        periodId = currentPeriod.id;
+    }
+
     const expenses = await prisma.fixedExpense.findMany({
         orderBy: { id: 'asc' }
     });
 
     const payments = await prisma.fixedExpensePayment.findMany({
         where: {
-            month: parseInt(month),
-            year: parseInt(year)
+            periodId: parseInt(periodId)
         }
     });
 
@@ -26,14 +31,13 @@ export async function getFixedExpenses(month, year) {
     });
 }
 
-export async function toggleFixedExpensePayment(expenseId, month, year, isPaid) {
+export async function toggleFixedExpensePayment(expenseId, periodId, isPaid) {
     // Verificar si el registro de pago existe
     const existingPayment = await prisma.fixedExpensePayment.findUnique({
         where: {
-            fixedExpenseId_month_year: {
+            fixedExpenseId_periodId: {
                 fixedExpenseId: parseInt(expenseId),
-                month: parseInt(month),
-                year: parseInt(year)
+                periodId: parseInt(periodId)
             }
         }
     });
@@ -47,8 +51,7 @@ export async function toggleFixedExpensePayment(expenseId, month, year, isPaid) 
         await prisma.fixedExpensePayment.create({
             data: {
                 fixedExpenseId: parseInt(expenseId),
-                month: parseInt(month),
-                year: parseInt(year),
+                periodId: parseInt(periodId),
                 isPaid,
                 paidAt: isPaid ? new Date() : null
             }
@@ -69,7 +72,7 @@ export async function updateFixedExpenseAmount(id, amount) {
     return { success: true };
 }
 
-export async function toggleFixedExpenseByName(name, month, year, isPaid) {
+export async function toggleFixedExpenseByName(name, periodId, isPaid) {
     const expense = await prisma.fixedExpense.findFirst({
         where: { name: name }
     });
@@ -78,5 +81,11 @@ export async function toggleFixedExpenseByName(name, month, year, isPaid) {
         return { success: false, error: `Gasto no encontrado: ${name}` };
     }
 
-    return await toggleFixedExpensePayment(expense.id, month, year, isPaid);
+    // Si no se provee periodId, buscar el actual
+    if (!periodId) {
+        const currentPeriod = await getCurrentPeriod();
+        periodId = currentPeriod.id;
+    }
+
+    return await toggleFixedExpensePayment(expense.id, periodId, isPaid);
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { TransactionService } from '@/lib/transaction-service';
 import { toggleFixedExpenseByName } from '@/app/actions/fixed-expense';
+import { updateSavingsGoal, getCurrentPeriod } from '@/app/actions/period';
+import { getPeriodSpendingAnalysis } from '@/lib/analysis';
 
 export async function POST(request) {
   try {
@@ -23,21 +25,52 @@ export async function POST(request) {
     const { amount, category, description, date, paymentMethod, mode, isPaid, fixedExpenseName } = body;
 
     // -------------------------------------------------------------
-    // NUEVO MODO: Actualizar solo estado de Gasto Fijo
+    // NUEVO MODO: Establecer Meta de Ahorro
+    // -------------------------------------------------------------
+    if (mode === 'set_savings_goal') {
+      if (!amount) {
+        return NextResponse.json({ error: 'Amount is required for savings goal' }, { status: 400 });
+      }
+
+      const activePeriod = await getCurrentPeriod();
+      const updateResult = await updateSavingsGoal(activePeriod.id, amount);
+
+      if (!updateResult.success) {
+        return NextResponse.json({ error: updateResult.error }, { status: 500 });
+      }
+
+      // Obtener contexto histórico para la IA
+      const analysis = await getPeriodSpendingAnalysis(3); // Últimos 3 periodos cerrados
+
+      return NextResponse.json({
+        success: true,
+        message: `Meta de ahorro actualizada a ${amount}`,
+        goal: amount,
+        context: {
+          currentGoal: amount,
+          analysis // Incluye promedios de gastos, ingresos, etc.
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // MODO: Actualizar solo estado de Gasto Fijo
     // -------------------------------------------------------------
     // Si mode es 'status_update' o si no hay amount pero sí un nombre de gasto fijo explícito
     if (mode === 'status_update' || (!amount && (fixedExpenseName || category))) {
       const targetName = fixedExpenseName || category;
       const targetDate = date ? new Date(date) : new Date();
-      const month = targetDate.getMonth() + 1;
-      const year = targetDate.getFullYear();
+      // Nota: Si usamos periodos, idealmente deberíamos buscar el periodo por fecha
+      // pero por ahora el toggleFixedExpenseByName busca periodo activo si no se da ID.
+      // Podríamos mejorar esto pasando el ID del periodo correcto.
 
       // isPaid debe ser booleano. Si viene como string 'true', convertirlo. Si es undefined, asumimos true (marcar pagado).
       const paidStatus = isPaid === undefined ? true : (String(isPaid) === 'true' || isPaid === true);
 
       console.log(`[Webhook] Actualizando estado de gasto fijo: ${targetName} -> ${paidStatus ? 'PAGADO' : 'PENDIENTE'}`);
 
-      const result = await toggleFixedExpenseByName(targetName, month, year, paidStatus);
+      // Usamos null para periodId para que busque el activo por defecto
+      const result = await toggleFixedExpenseByName(targetName, null, paidStatus);
 
       if (!result.success) {
         console.warn(`[Webhook] Error al actualizar gasto fijo: ${result.error}`);
@@ -86,15 +119,10 @@ export async function POST(request) {
     // 4. Auto-Verificar Gastos Fijos
     // Si la categoría de la transacción coincide con un Gasto Fijo, marcarlo como pagado para este mes.
     try {
-      const transactionDate = new Date(result.data.date);
-      const month = transactionDate.getMonth() + 1;
-      const year = transactionDate.getFullYear();
       const categoryName = result.data.category?.name || category;
-
       console.log(`Checking fixed expense for category: ${categoryName}`);
-
-      // Ya importamos toggleFixedExpenseByName arriba
-      await toggleFixedExpenseByName(categoryName, month, year, true);
+      // Auto-update fixed expense in active period
+      await toggleFixedExpenseByName(categoryName, null, true);
 
     } catch (feError) {
       console.warn("Could not auto-update fixed expense:", feError);

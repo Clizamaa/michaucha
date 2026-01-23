@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { formatCLP } from "@/lib/utils";
-import { Wallet, Edit2, TrendingDown, TrendingUp } from "lucide-react";
-import { setMonthlyBudget } from "@/app/actions/budget";
+import { Wallet, Edit2, TrendingDown, TrendingUp, PiggyBank } from "lucide-react";
+import { setPeriodBudget, updateSavingsGoal } from "@/app/actions/period"; // Using period actions now if available, or create new ones? We used setMonthlyBudget before.
+// Correct import based on previous refactor:
+import { setPeriodBudget as setBudgetAction } from "@/app/actions/budget";
 
 export default function BudgetCard({ summary }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -12,12 +14,22 @@ export default function BudgetCard({ summary }) {
 
     const handleSave = async () => {
         setIsLoading(true);
-        await setMonthlyBudget(budgetInput);
+        // Assuming we want to update the period budget which matches current logic
+        // We need periodId? summary usually comes from getDashboardData which uses current period.
+        // But the previous action setMonthlyBudget used month/year logic. 
+        // We refactored setPeriodBudget in budget.js. We need periodId.
+        // Ideally summary object should contain periodId or we fetch current. 
+        // For simplicity, let's assume setPeriodBudget handles finding current if null.
+        await setBudgetAction(budgetInput, null);
         setIsEditing(false);
         setIsLoading(false);
     };
 
+    const savingsGoal = summary.savingsGoal || 0;
     const remaining = (summary.budget || 0) - summary.monthTotal;
+    // El "Disponible Real" considera el ahorro como un "gasto comprometido"
+    const availableAfterSavings = remaining - savingsGoal;
+
     const progress = summary.budget > 0 ? (summary.monthTotal / summary.budget) * 100 : 0;
     const isOverBudget = remaining < 0;
 
@@ -32,7 +44,14 @@ export default function BudgetCard({ summary }) {
                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
                             <Wallet size={20} />
                         </div>
-                        <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mt-1">Saldo Disponible</p>
+                        <div>
+                            <p className="text-slate-400 text-sm font-bold uppercase tracking-wider mt-1">Saldo Disponible</p>
+                            {savingsGoal > 0 && (
+                                <p className="text-[10px] text-emerald-400 font-medium">
+                                    (Meta: {formatCLP(savingsGoal)})
+                                </p>
+                            )}
+                        </div>
                     </div>
                     <button
                         onClick={() => setIsEditing(!isEditing)}
@@ -71,9 +90,21 @@ export default function BudgetCard({ summary }) {
                     </div>
                 ) : (
                     <div className="mb-8">
-                        <h2 className="text-5xl md:text-6xl font-bold tracking-tight text-white mb-2">
-                            {formatCLP(remaining)}
-                        </h2>
+                        <div className="flex items-baseline gap-2">
+                            <h2 className="text-5xl md:text-6xl font-bold tracking-tight text-white mb-2">
+                                {formatCLP(remaining)}
+                            </h2>
+                        </div>
+
+                        {savingsGoal > 0 && (
+                            <div className="flex items-center gap-2 mb-2 text-sm">
+                                <span className="text-slate-400">Libre tras ahorro:</span>
+                                <span className={availableAfterSavings >= 0 ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
+                                    {formatCLP(availableAfterSavings)}
+                                </span>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${isOverBudget ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
                                 {isOverBudget ? 'Sobrepresupuesto' : 'Dentro del presupuesto'}
@@ -104,6 +135,14 @@ export default function BudgetCard({ summary }) {
                         <div>
                             <p className="text-xs text-slate-500 mb-1">Sueldo Mensual</p>
                             <p className="text-sm font-bold text-slate-300">{formatCLP(summary.budget || 0)}</p>
+                        </div>
+                        <div className="w-px h-8 bg-white/5" />
+                        <div>
+                            <p className="text-xs text-slate-500 mb-1">Meta Ahorro</p>
+                            <div className="flex items-center gap-1">
+                                <PiggyBank size={14} className="text-emerald-400" />
+                                <p className="text-sm font-bold text-slate-300">{formatCLP(savingsGoal)}</p>
+                            </div>
                         </div>
                         <div className="w-px h-8 bg-white/5" />
                         <div>

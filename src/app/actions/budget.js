@@ -2,26 +2,24 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentPeriod } from "./period";
 
-export async function setMonthlyBudget(amount) {
-    const today = new Date();
-    const month = today.getMonth() + 1; // 1-12
-    const year = today.getFullYear();
+export async function setPeriodBudget(amount, periodId) {
+    if (!periodId) {
+        const currentPeriod = await getCurrentPeriod();
+        periodId = currentPeriod.id;
+    }
 
     try {
         const budget = await prisma.monthlyBudget.upsert({
             where: {
-                month_year: {
-                    month,
-                    year
-                }
+                periodId: parseInt(periodId)
             },
             update: {
                 amount: parseInt(amount)
             },
             create: {
-                month,
-                year,
+                periodId: parseInt(periodId),
                 amount: parseInt(amount)
             }
         });
@@ -34,17 +32,15 @@ export async function setMonthlyBudget(amount) {
     }
 }
 
-export async function getMonthlyBudget() {
-    const today = new Date();
-    const month = today.getMonth() + 1;
-    const year = today.getFullYear();
+export async function getPeriodBudget(periodId) {
+    if (!periodId) {
+        const currentPeriod = await getCurrentPeriod();
+        periodId = currentPeriod.id;
+    }
 
     const budget = await prisma.monthlyBudget.findUnique({
         where: {
-            month_year: {
-                month,
-                year
-            }
+            periodId: parseInt(periodId)
         }
     });
 

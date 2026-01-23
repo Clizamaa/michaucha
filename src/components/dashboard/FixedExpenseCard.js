@@ -5,7 +5,7 @@ import { Check, Edit2, X } from 'lucide-react';
 import { formatCLP, cn } from '@/lib/utils';
 import { toggleFixedExpensePayment, updateFixedExpenseAmount } from '@/app/actions/fixed-expense';
 
-export default function FixedExpenseCard({ expense, month, year }) {
+export default function FixedExpenseCard({ expense, periodId }) {
     const [isPaid, setIsPaid] = useState(expense.isPaid);
     const [isEditing, setIsEditing] = useState(false);
     const [amount, setAmount] = useState(expense.amount);
@@ -17,7 +17,7 @@ export default function FixedExpenseCard({ expense, month, year }) {
         setIsPaid(newState); // Optimistic update
 
         try {
-            await toggleFixedExpensePayment(expense.id, month, year, newState);
+            await toggleFixedExpensePayment(expense.id, periodId, newState);
         } catch (error) {
             console.error("Failed to toggle payment", error);
             setIsPaid(!newState); // Revert
