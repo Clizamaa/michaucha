@@ -38,11 +38,17 @@ export default async function FixedExpensesList({ periodId }) {
             </div>
 
             {/* Diseño en Cuadrícula */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-2">
-                {expenses.map((expense) => (
-                    <FixedExpenseCard key={expense.id} expense={expense} periodId={currentPeriodId} />
-                ))}
-            </div>
+            {expenses.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-2">
+                    {expenses.map((expense) => (
+                        <FixedExpenseCard key={expense.id} expense={expense} periodId={currentPeriodId} />
+                    ))}
+                </div>
+            ) : (
+                <div className="px-2 py-8 text-center bg-[#1f2029] rounded-xl border border-white/5 border-dashed">
+                    <p className="text-slate-400 text-sm">No hay gastos fijos registrados.</p>
+                </div>
+            )}
         </div>
     );
 }

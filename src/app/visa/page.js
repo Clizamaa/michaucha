@@ -6,7 +6,7 @@ import { formatCLP, cn } from "@/lib/utils";
 import { getCurrentPeriod } from "@/app/actions/period";
 
 export const metadata = {
-    title: 'Movimientos VISA | Michaucha',
+    title: 'Movimientos VISA | Mis chauchas',
     description: 'Resumen de gastos y facturación de tarjeta VISA.',
 };
 

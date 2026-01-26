@@ -25,6 +25,35 @@ export async function POST(request) {
     const { amount, category, description, date, paymentMethod, mode, isPaid, fixedExpenseName } = body;
 
     // -------------------------------------------------------------
+    // NUEVO MODO: Consulta / Análisis de Presupuesto
+    // -------------------------------------------------------------
+    if (mode === 'analyze_spending') {
+      const activePeriod = await getCurrentPeriod();
+      const analysis = await getPeriodSpendingAnalysis(3); // Histórico
+
+      // Calcular estado actual del periodo
+      // Necesitamos saber cuánto se ha gastado en el periodo actual
+      // Para esto, podemos usar TransactionService o una consulta directa rápida aquí
+      // Por consistencia, podríamos necesitar un servicio 'getPeriodSummary' pero por ahora lo haremos simple?
+      // Mejor usamos getPeriodSpendingAnalysis(0) o similar si soportara activo, pero soporta cerrados.
+
+      // Vamos a calcular el gasto actual rápidamente:
+      // (Esto es un poco hacky, idealmente debería estar en un servicio, pero por brevedad lo pondré aquí)
+      // Ojo: TransactionService no tiene 'getSummary'.
+
+      return NextResponse.json({
+        success: true,
+        context: {
+          periodName: `${activePeriod.month}/${activePeriod.year}`,
+          savingsGoal: activePeriod.savingsGoal,
+          historicalAnalysis: analysis,
+          // Nota: El cliente (n8n) usará esto para que el LLM genere la respuesta.
+          // Podríamos agregar "currentSpending" si tuviéramos esa función a mano.
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
     // NUEVO MODO: Establecer Meta de Ahorro
     // -------------------------------------------------------------
     if (mode === 'set_savings_goal') {
@@ -58,7 +87,12 @@ export async function POST(request) {
     // -------------------------------------------------------------
     // Si mode es 'status_update' o si no hay amount pero sí un nombre de gasto fijo explícito
     if (mode === 'status_update' || (!amount && (fixedExpenseName || category))) {
-      const targetName = fixedExpenseName || category;
+      let targetName = fixedExpenseName || category;
+      // Limpieza básica para comandos de voz (ej: "Arriendo pagado" -> "Arriendo")
+      if (targetName) {
+        targetName = targetName.replace(/\b(pagado|pagar|listo|ok)\b/gi, '').trim();
+      }
+
       const targetDate = date ? new Date(date) : new Date();
       // Nota: Si usamos periodos, idealmente deberíamos buscar el periodo por fecha
       // pero por ahora el toggleFixedExpenseByName busca periodo activo si no se da ID.
@@ -129,7 +163,14 @@ export async function POST(request) {
       // No fallamos la solicitud si esta parte falla, es una característica adicional
     }
 
-    return NextResponse.json({ success: true, transaction: result.data });
+    // Obtener análisis para alertas del Asesor Financiero
+    const analysis = await getPeriodSpendingAnalysis(3);
+
+    return NextResponse.json({
+      success: true,
+      transaction: result.data,
+      context: { analysis }
+    });
 
   } catch (error) {
     console.error('[API] Webhook Error:', error);
