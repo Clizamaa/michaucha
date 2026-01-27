@@ -78,3 +78,24 @@ export async function updateSavingsGoal(periodId, amount) {
         return { success: false, error: error.message };
     }
 }
+
+export async function getPeriodByDate(date) {
+    const targetDate = new Date(date);
+
+    // Búsqueda aproximada: encontrar periodo donde la fecha caiga dentro
+    const period = await prisma.period.findFirst({
+        where: {
+            AND: [
+                { startDate: { lte: targetDate } },
+                {
+                    OR: [
+                        { endDate: { gte: targetDate } },
+                        { endDate: null }
+                    ]
+                }
+            ]
+        }
+    });
+
+    return period;
+}

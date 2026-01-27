@@ -2,7 +2,7 @@
 
 import { TransactionService } from "@/lib/transaction-service";
 import { prisma } from "@/lib/prisma";
-import { getCurrentPeriod } from "./period";
+import { getCurrentPeriod, getPeriodByDate } from "./period";
 
 export async function createTransaction(data) {
     return await TransactionService.createTransaction(data);
@@ -120,10 +120,16 @@ export async function getDashboardData(periodId = null) {
     };
 }
 
-export async function getCategoryTransactions(categoryId, periodId = null) {
+export async function getCategoryTransactions(categoryId, periodIdentifier = null) {
     let activePeriod;
-    if (periodId) {
-        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodId) } });
+
+    // Check if periodIdentifier is a Date object or potential Date string
+    if (periodIdentifier instanceof Date || (typeof periodIdentifier === 'string' && periodIdentifier.includes('-') && !isNaN(Date.parse(periodIdentifier)))) {
+        // Assume it's a date
+        activePeriod = await getPeriodByDate(periodIdentifier);
+    } else if (periodIdentifier) {
+        // Assume it's an ID
+        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodIdentifier) } });
     } else {
         activePeriod = await getCurrentPeriod();
     }
@@ -131,8 +137,19 @@ export async function getCategoryTransactions(categoryId, periodId = null) {
     const startDate = activePeriod ? activePeriod.startDate : new Date();
     // Si no hay periodo, un fallback seguro?
 
+    const idParsed = parseInt(categoryId);
+
+    if (isNaN(idParsed)) {
+        console.error("Invalid categoryId received:", categoryId);
+        return {
+            categoryName: 'Categoría no válida',
+            transactions: [],
+            total: 0
+        };
+    }
+
     const whereClause = {
-        categoryId: parseInt(categoryId),
+        categoryId: idParsed,
         ...(activePeriod ? {
             date: {
                 gte: startDate,
@@ -148,7 +165,7 @@ export async function getCategoryTransactions(categoryId, periodId = null) {
     });
 
     const category = await prisma.category.findUnique({
-        where: { id: parseInt(categoryId) }
+        where: { id: idParsed }
     });
 
     const total = transactions.reduce((acc, curr) => acc + curr.amount, 0);
