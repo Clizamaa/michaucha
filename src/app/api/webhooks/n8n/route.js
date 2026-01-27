@@ -3,6 +3,7 @@ import { TransactionService } from '@/lib/transaction-service';
 import { toggleFixedExpenseByName } from '@/app/actions/fixed-expense';
 import { updateSavingsGoal, getCurrentPeriod } from '@/app/actions/period';
 import { getPeriodSpendingAnalysis } from '@/lib/analysis';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request) {
   try {
@@ -123,7 +124,7 @@ export async function POST(request) {
     }
 
     // -------------------------------------------------------------
-    // MODO POR DEFECTO: Crear Transacción
+    // MODO POR DEFECTO: Crear Transacción o Actualizar Gasto Fijo
     // -------------------------------------------------------------
 
     // Validación básica para transacciones
@@ -131,11 +132,55 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Amount is required for transaction creation' }, { status: 400 });
     }
 
-    // 3. Crear Transacción
+    // 2.5 Verificar si es un Gasto Fijo existente (Lógica solicitada: Editar monto y marcar pagado)
+    // Limpiamos el nombre de la categoría (ej: "Luz pagada" -> "Luz")
+    let targetName = category || fixedExpenseName;
+    if (targetName) {
+      targetName = targetName.replace(/\b(pagado|pagar|listo|ok)\b/gi, '').trim();
+    }
+
+    // Intentamos buscarlo en Gastos Fijos
+    // Importamos prisma dinámicamente o debemos asegurarnos que esté importado arriba.
+    // Usaremos toggleFixedExpenseByName que ya busca el gasto, pero necesitamos actualizar el monto antes.
+
+    // Nota: Como no tenemos acceso directo a prisma aquí sin importarlo, lo importaremos al inicio del archivo en el siguiente paso.
+    // Hack: Usaremos una verificación rápida intentando actualizarlo si existe.
+    // Pero lo ideal es usar prisma.
+    // Asumiremos que 'prisma' está disponible (lo agregaré en imports).
+
+    const potentialFixed = await prisma.fixedExpense.findFirst({
+      where: { name: targetName }
+    });
+
+    if (potentialFixed) {
+      console.log(`[Webhook] '${targetName}' es un Gasto Fijo. Actualizando monto a ${amount} y marcando pagado.`);
+
+      // 1. Actualizar Monto del Gasto Fijo
+      await prisma.fixedExpense.update({
+        where: { id: potentialFixed.id },
+        data: { amount: Number(amount) }
+      });
+
+      // 2. Marcar como Pagado
+      const payResult = await toggleFixedExpenseByName(targetName, null, true);
+
+      // 3. Devolver respuesta (sin crear transacción duplicada)
+      // Obtener análisis para contexto
+      const analysis = await getPeriodSpendingAnalysis(3);
+
+      return NextResponse.json({
+        success: true,
+        message: `Gasto fijo '${targetName}' actualizado a ${amount} y marcado como PAGADO`,
+        data: payResult,
+        context: { analysis }
+      });
+    }
+
+    // 3. Crear Transacción (Si NO era gasto fijo)
     // TransactionService maneja la resolución de categoría (nombre -> id) y valores predeterminados
     const result = await TransactionService.createTransaction({
       amount: Number(amount),
-      category: category, // Pasar el nombre directamente
+      category: category,
       description: description,
       date: date || new Date(),
       paymentMethod: paymentMethod || 'CASH'
