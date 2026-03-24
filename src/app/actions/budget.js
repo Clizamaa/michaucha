@@ -2,26 +2,34 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
 import { getCurrentPeriod } from "./period";
 
+async function getSessionUserId() {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+    return parseInt(session.user.id);
+}
+
 export async function setPeriodBudget(amount, periodId) {
+    const userId = await getSessionUserId();
+
     if (!periodId) {
         const currentPeriod = await getCurrentPeriod();
         periodId = currentPeriod.id;
     }
 
+    // Ensure period belongs to this user
+    const period = await prisma.period.findFirst({
+        where: { id: parseInt(periodId), userId }
+    });
+    if (!period) return { success: false, error: 'Unauthorized' };
+
     try {
         const budget = await prisma.monthlyBudget.upsert({
-            where: {
-                periodId: parseInt(periodId)
-            },
-            update: {
-                amount: parseInt(amount)
-            },
-            create: {
-                periodId: parseInt(periodId),
-                amount: parseInt(amount)
-            }
+            where: { periodId: parseInt(periodId) },
+            update: { amount: parseInt(amount) },
+            create: { periodId: parseInt(periodId), amount: parseInt(amount) }
         });
 
         revalidatePath('/');
@@ -39,9 +47,7 @@ export async function getPeriodBudget(periodId) {
     }
 
     const budget = await prisma.monthlyBudget.findUnique({
-        where: {
-            periodId: parseInt(periodId)
-        }
+        where: { periodId: parseInt(periodId) }
     });
 
     return budget ? budget.amount : 0;

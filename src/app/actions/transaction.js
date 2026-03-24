@@ -2,35 +2,40 @@
 
 import { TransactionService } from "@/lib/transaction-service";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { getCurrentPeriod, getPeriodByDate } from "./period";
 
+async function getSessionUserId() {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+    return parseInt(session.user.id);
+}
+
 export async function createTransaction(data) {
-    return await TransactionService.createTransaction(data);
+    const userId = await getSessionUserId();
+    return await TransactionService.createTransaction({ ...data, userId });
 }
 
 export async function deleteTransaction(id) {
     return await TransactionService.deleteTransaction(id);
 }
 
-// ... (imports remain)
-
 export async function getDashboardData(periodId = null) {
+    const userId = await getSessionUserId();
     let activePeriod;
 
     if (periodId) {
-        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodId) } });
+        activePeriod = await prisma.period.findFirst({
+            where: { id: parseInt(periodId), userId }
+        });
     } else {
         activePeriod = await getCurrentPeriod();
     }
 
     if (!activePeriod) {
-        // Fallback si no hay periodos (recién inicializado)
         return {
             summary: {
-                monthTotal: 0,
-                budget: 0,
-                remaining: 0,
-                diffPercent: 0,
+                monthTotal: 0, budget: 0, remaining: 0, diffPercent: 0,
                 dailyAverage: 0,
                 maxExpense: { category: '-', amount: 0, categoryId: null }
             },
@@ -39,16 +44,13 @@ export async function getDashboardData(periodId = null) {
     }
 
     const startDate = activePeriod.startDate;
-    const endDate = activePeriod.endDate || new Date(); // Si está activo, hasta hoy para filtro
 
-    // 1. Obtener Transacciones Reales dentro del Periodo
+    // 1. Transacciones del periodo
     const transactions = await prisma.transaction.findMany({
         where: {
+            category: { userId },
             date: {
                 gte: startDate,
-                // Si el periodo está cerrado, usamos su fecha fin. Si está activo, no ponemos límite superior estricto 
-                // o usamos ahora? Generalmente queremos ver todo lo de ese periodo.
-                // Si está cerrado activePeriod.endDate no es null.
                 ...(activePeriod.endDate ? { lte: activePeriod.endDate } : {})
             }
         },
@@ -56,20 +58,15 @@ export async function getDashboardData(periodId = null) {
         orderBy: { date: 'desc' }
     });
 
-    let transactionTotal = transactions.reduce((acc, curr) => acc + curr?.amount || 0, 0);
+    let transactionTotal = transactions.reduce((acc, curr) => acc + (curr?.amount || 0), 0);
 
-    // 2. Obtener Gastos Fijos Pagados en este Periodo
+    // 2. Gastos Fijos Pagados
     const paidFixedExpensesStats = await prisma.fixedExpensePayment.findMany({
-        where: {
-            periodId: activePeriod.id,
-            isPaid: true
-        },
-        include: {
-            fixedExpense: true
-        }
+        where: { periodId: activePeriod.id, isPaid: true },
+        include: { fixedExpense: true }
     });
 
-    // 3. Calcular "Gasto Virtual"
+    // 3. Gasto Virtual (gastos fijos sin transacción real)
     let virtualFixedTotal = 0;
     const transactionCategoryNames = new Set(transactions.map(t => t.category.name.toLowerCase()));
 
@@ -82,77 +79,69 @@ export async function getDashboardData(periodId = null) {
 
     const totalGastadoReal = transactionTotal + virtualFixedTotal;
 
-    // Lógica de Promedio Diario
-    // Días transcurridos = (ahora - inicio) ó (fin - inicio)
     const endCalculationDate = activePeriod.endDate || new Date();
     const diffTime = Math.abs(endCalculationDate - startDate);
-    const daysPassed = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Al menos 1 día
-
+    const daysPassed = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
     const dailyAverage = daysPassed > 0 ? totalGastadoReal / daysPassed : 0;
 
-    const maxTransaction = transactions.length > 0 ? transactions.reduce((prev, current) => (prev.amount > current.amount) ? prev : current) : null;
+    const maxTransaction = transactions.length > 0
+        ? transactions.reduce((prev, current) => (prev.amount > current.amount) ? prev : current)
+        : null;
 
     const budgetRecord = await prisma.monthlyBudget.findUnique({
-        where: {
-            periodId: activePeriod.id
-        }
+        where: { periodId: activePeriod.id }
     });
 
     const budget = budgetRecord ? budgetRecord.amount : 0;
     const remaining = budget - totalGastadoReal;
 
+    const visaTotal = transactions
+        .filter(t => t.paymentMethod === 'VISA')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+
     return {
         summary: {
-            monthTotal: totalGastadoReal,
-            budget,
-            remaining,
-            savingsGoal: activePeriod.savingsGoal, // NEW field
+            monthTotal: totalGastadoReal, budget, remaining,
+            savingsGoal: activePeriod.savingsGoal,
             diffPercent: 0,
             dailyAverage: Math.round(dailyAverage),
-            maxExpense: maxTransaction ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId } : { category: '-', amount: 0, categoryId: null },
-            periodValues: { // Info extra para el frontend
+            maxExpense: maxTransaction
+                ? { category: maxTransaction.category.name, amount: maxTransaction.amount, categoryId: maxTransaction.categoryId }
+                : { category: '-', amount: 0, categoryId: null },
+            periodValues: {
                 startDate: activePeriod.startDate,
                 endDate: activePeriod.endDate,
                 isActive: activePeriod.isActive
-            }
+            },
+            visaTotal
         },
         recentTransactions: transactions
     };
 }
 
 export async function getCategoryTransactions(categoryId, periodIdentifier = null) {
+    const userId = await getSessionUserId();
     let activePeriod;
 
-    // Check if periodIdentifier is a Date object or potential Date string
     if (periodIdentifier instanceof Date || (typeof periodIdentifier === 'string' && periodIdentifier.includes('-') && !isNaN(Date.parse(periodIdentifier)))) {
-        // Assume it's a date
         activePeriod = await getPeriodByDate(periodIdentifier);
     } else if (periodIdentifier) {
-        // Assume it's an ID
-        activePeriod = await prisma.period.findUnique({ where: { id: parseInt(periodIdentifier) } });
+        activePeriod = await prisma.period.findFirst({ where: { id: parseInt(periodIdentifier), userId } });
     } else {
         activePeriod = await getCurrentPeriod();
     }
 
-    const startDate = activePeriod ? activePeriod.startDate : new Date();
-    // Si no hay periodo, un fallback seguro?
-
     const idParsed = parseInt(categoryId);
-
     if (isNaN(idParsed)) {
-        console.error("Invalid categoryId received:", categoryId);
-        return {
-            categoryName: 'Categoría no válida',
-            transactions: [],
-            total: 0
-        };
+        return { categoryName: 'Categoría no válida', transactions: [], total: 0 };
     }
 
     const whereClause = {
         categoryId: idParsed,
+        category: { userId },
         ...(activePeriod ? {
             date: {
-                gte: startDate,
+                gte: activePeriod.startDate,
                 ...(activePeriod.endDate ? { lte: activePeriod.endDate } : {})
             }
         } : {})
@@ -164,8 +153,8 @@ export async function getCategoryTransactions(categoryId, periodIdentifier = nul
         orderBy: { date: 'desc' }
     });
 
-    const category = await prisma.category.findUnique({
-        where: { id: idParsed }
+    const category = await prisma.category.findFirst({
+        where: { id: idParsed, userId }
     });
 
     const total = transactions.reduce((acc, curr) => acc + curr.amount, 0);

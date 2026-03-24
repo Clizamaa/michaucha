@@ -1,27 +1,35 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Space_Grotesk } from "next/font/google";
-import { ArrowUpRight, TrendingDown, Wallet, CreditCard, Activity, Calendar } from "lucide-react";
+import { ArrowUpRight, TrendingDown, Wallet, CreditCard, Activity, Calendar, LogOut, AlertCircle } from "lucide-react";
+import { auth, signOut } from "@/auth";
 
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 
 import BudgetCard from "@/components/dashboard/BudgetCard";
 import ClosePeriodButton from "@/components/dashboard/ClosePeriodButton";
 import DeleteButton from "@/components/shared/DeleteButton";
-import { getDashboardData, createTransaction } from "@/app/actions/transaction";
+import { getDashboardData } from "@/app/actions/transaction";
 import FixedExpensesList from "@/components/dashboard/FixedExpensesList";
+import AddExpenseFAB from "@/components/dashboard/AddExpenseFAB";
 import { formatCLP, cn } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Dashboard | Michaucha',
+  title: 'Dashboard | Mis chauchas',
   description: 'Control de gastos personales y periodo financiero.',
 };
 
 export default async function Dashboard() {
-  // Ya no usamos searchParams para year/month, usamos el periodo actual por defecto.
-  // Futura mejora: permitir history/buscar por periodo ID.
+  const session = await auth();
+  const userName = session?.user?.name || session?.user?.email || 'U';
+  const userInitials = userName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const data = await getDashboardData();
   const { summary, recentTransactions } = data;
@@ -51,10 +59,25 @@ export default async function Dashboard() {
 
           <div className="flex items-center gap-4">
             <ClosePeriodButton />
-            {/* Búsqueda o Simulación de Notificaciones */}
+            {/* Logout */}
+            <form
+              action={async () => {
+                'use server';
+                await signOut({ redirectTo: '/login' });
+              }}
+            >
+              <button
+                type="submit"
+                title="Cerrar sesión"
+                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <LogOut size={16} />
+              </button>
+            </form>
+            {/* Avatar */}
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 p-[2px]">
               <div className="w-full h-full rounded-full bg-[#0f1023] flex items-center justify-center text-white font-bold text-xs">
-                CH
+                {userInitials}
               </div>
             </div>
           </div>
@@ -73,6 +96,16 @@ export default async function Dashboard() {
             </span>
           )}
         </div>
+
+        {(!summary.budget || summary.budget === 0) && (
+          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-2xl flex items-start gap-3 shadow-lg shadow-amber-500/5">
+            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Aún no has registrado tu sueldo mensual</p>
+              <p className="text-xs text-amber-400/80 mt-1">Haz clic en el ícono del lápiz en la tarjeta de Saldo Disponible para configurar tu presupuesto de este mes.</p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Tarjeta de total - Ocupa 2 columnas en escritorio */}
@@ -106,18 +139,22 @@ export default async function Dashboard() {
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                 <CreditCard size={100} />
               </div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
                   <CreditCard size={24} />
                 </div>
-                <div className="bg-blue-500/10 text-blue-400 p-1 rounded-lg">
+                <div className="bg-blue-500/10 text-blue-400 p-1 rounded-lg shrink-0">
                   <ArrowUpRight size={16} />
                 </div>
               </div>
-              <div className="relative z-10">
+
+              <div className="flex-1 flex flex-col items-center justify-center relative z-10 my-4">
+                <p className="text-white font-bold text-3xl truncate text-center w-full -translate-y-[100%]">{formatCLP(summary.visaTotal || 0)}</p>
+              </div>
+
+              <div className="relative z-10 -translate-y-[100%]">
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">VISA</p>
-                <p className="text-white font-bold text-lg">Movimientos</p>
-                <p className="text-xs text-slate-500 mt-1">Ver detalle mensual</p>
+                <p className="text-xs text-slate-500 mt-1">Ver detalle facturado</p>
               </div>
             </Link>
           </div>
@@ -179,6 +216,7 @@ export default async function Dashboard() {
 
       </main>
 
+      <AddExpenseFAB />
 
     </div>
   );

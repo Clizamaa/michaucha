@@ -2,21 +2,25 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+
+async function getSessionUserId() {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+    return parseInt(session.user.id);
+}
 
 export async function getCurrentPeriod() {
-    // Buscar periodo activo
+    const userId = await getSessionUserId();
+
     let activePeriod = await prisma.period.findFirst({
-        where: { isActive: true },
+        where: { isActive: true, userId },
         orderBy: { startDate: 'desc' }
     });
 
-    // Si no existe ninguno, crear el primero por defecto
     if (!activePeriod) {
         activePeriod = await prisma.period.create({
-            data: {
-                startDate: new Date(),
-                isActive: true
-            }
+            data: { startDate: new Date(), isActive: true, userId }
         });
     }
 
@@ -26,46 +30,39 @@ export async function getCurrentPeriod() {
 export async function closePeriod() {
     const activePeriod = await getCurrentPeriod();
 
-    if (!activePeriod) {
-        throw new Error("No active period found");
-    }
+    if (!activePeriod) throw new Error("No active period found");
 
     const now = new Date();
+    const userId = await getSessionUserId();
 
-    // 1. Cerrar periodo actual
     await prisma.period.update({
         where: { id: activePeriod.id },
-        data: {
-            isActive: false,
-            endDate: now
-        }
+        data: { isActive: false, endDate: now }
     });
 
-    // 2. Crear nuevo periodo
     const newPeriod = await prisma.period.create({
-        data: {
-            startDate: now,
-            isActive: true
-        }
+        data: { startDate: now, isActive: true, userId }
     });
 
-    // NOTA: Los gastos fijos "se reinician" automáticamente porque
-    // la tabla FixedExpensePayment vincula pagos a un periodId específico.
-    // Al crearse un nuevo periodo, no existen registros de pago para ese nuevo ID,
-    // por lo tanto, todos los FixedExpense aparecerán como "No Pagados" (o pendientes).
-
-    // ... (closePeriod implementation)
     revalidatePath('/');
     return { success: true, newPeriod };
 }
 
 export async function updateSavingsGoal(periodId, amount) {
+    const userId = await getSessionUserId();
+
     if (!periodId) {
         const activePeriod = await getCurrentPeriod();
         periodId = activePeriod.id;
     }
 
     try {
+        // Ensure the period belongs to this user
+        const period = await prisma.period.findFirst({
+            where: { id: parseInt(periodId), userId }
+        });
+        if (!period) throw new Error('Period not found or unauthorized');
+
         await prisma.period.update({
             where: { id: parseInt(periodId) },
             data: { savingsGoal: parseInt(amount) }
@@ -80,11 +77,12 @@ export async function updateSavingsGoal(periodId, amount) {
 }
 
 export async function getPeriodByDate(date) {
+    const userId = await getSessionUserId();
     const targetDate = new Date(date);
 
-    // Búsqueda aproximada: encontrar periodo donde la fecha caiga dentro
     const period = await prisma.period.findFirst({
         where: {
+            userId,
             AND: [
                 { startDate: { lte: targetDate } },
                 {

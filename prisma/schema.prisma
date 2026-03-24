@@ -7,10 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String?
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  periods       Period[]
+  fixedExpenses FixedExpense[]
+  categories    Category[]
+}
+
 model Category {
   id           Int           @id @default(autoincrement())
-  name         String        @unique
+  name         String
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
   transactions Transaction[]
+
+  @@unique([name, userId])
+  @@index([userId])
 }
 
 model Transaction {
@@ -34,11 +51,15 @@ model Period {
   endDate     DateTime?
   isActive    Boolean   @default(true)
   savingsGoal Int       @default(0)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   payments FixedExpensePayment[]
   budgets  MonthlyBudget[]
+
+  @@index([userId])
 }
 
 model MonthlyBudget {
@@ -56,9 +77,13 @@ model FixedExpense {
   id        Int                   @id @default(autoincrement())
   name      String
   amount    Int
+  userId    Int
+  user      User                  @relation(fields: [userId], references: [id])
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
   payments  FixedExpensePayment[]
+
+  @@index([userId])
 }
 
 model FixedExpensePayment {

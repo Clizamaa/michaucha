@@ -4,6 +4,7 @@ import DeleteButton from "@/components/shared/DeleteButton";
 import { prisma } from "@/lib/prisma";
 import { formatCLP, cn } from "@/lib/utils";
 import { getCurrentPeriod } from "@/app/actions/period";
+import { auth } from "@/auth";
 
 export const metadata = {
     title: 'Movimientos VISA | Mis chauchas',
@@ -45,6 +46,10 @@ async function getVisaData(periodId = null) {
 }
 
 export default async function VisaPage() {
+    const session = await auth();
+    const userName = session?.user?.name || session?.user?.email || 'USUARIO';
+    const displayCardName = userName.split('@')[0].toUpperCase();
+
     // Usamos el periodo actual por defecto
     const { transactions, total, activePeriod } = await getVisaData();
 
@@ -110,7 +115,7 @@ export default async function VisaPage() {
 
                                 <div className="flex justify-between items-end text-white/50 font-mono text-xs tracking-widest">
                                     <div>**** 1234</div>
-                                    <div>CHRISTIAN</div>
+                                    <div className="truncate max-w-[120px]">{displayCardName}</div>
                                 </div>
                             </div>
                         </div>

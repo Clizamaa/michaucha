@@ -1,27 +1,23 @@
 import { prisma } from "@/lib/prisma";
 
-export async function getPeriodSpendingAnalysis(limit = 3) {
-    // 1. Obtener últimos 'limit' periodos CERRADOS (isActive: false)
+export async function getPeriodSpendingAnalysis(userId, limit = 3) {
+    if (!userId) return { averageSpending: 0, averageIncome: 0, categories: {}, periodCount: 0 };
+
     const closedPeriods = await prisma.period.findMany({
-        where: { isActive: false },
+        where: { isActive: false, userId },
         orderBy: { endDate: 'desc' },
         take: limit,
         include: {
-            payments: { // Gastos fijos
+            payments: {
                 where: { isPaid: true },
                 include: { fixedExpense: true }
             },
-            budgets: true // Presupuesto
+            budgets: true
         }
     });
 
     if (closedPeriods.length === 0) {
-        return {
-            averageSpending: 0,
-            averageIncome: 0,
-            categories: {},
-            periodCount: 0
-        };
+        return { averageSpending: 0, averageIncome: 0, categories: {}, periodCount: 0 };
     }
 
     let totalGlobalSpending = 0;
@@ -29,33 +25,28 @@ export async function getPeriodSpendingAnalysis(limit = 3) {
     const categoryTotals = {};
 
     for (const period of closedPeriods) {
-        // Ingresos (Presupuesto)
         const budget = period.budgets[0]?.amount || 0;
         totalIncome += budget;
 
-        // Gastos Fijos
         let periodFixedTotal = 0;
         for (const payment of period.payments) {
             periodFixedTotal += payment.fixedExpense.amount;
         }
 
-        // Transacciones (Variable)
-        // Necesitamos consultar las transacciones de este periodo
         const transactions = await prisma.transaction.findMany({
             where: {
+                category: { userId },
                 date: {
                     gte: period.startDate,
-                    lte: period.endDate // periodo cerrado tiene endDate
+                    lte: period.endDate
                 }
             },
             include: { category: true }
         });
 
-        // Sumar transacciones y agrupar por categoría
         let periodVariableTotal = 0;
         for (const t of transactions) {
             periodVariableTotal += t.amount;
-
             const catName = t.category.name;
             if (!categoryTotals[catName]) categoryTotals[catName] = 0;
             categoryTotals[catName] += t.amount;
@@ -65,8 +56,6 @@ export async function getPeriodSpendingAnalysis(limit = 3) {
     }
 
     const count = closedPeriods.length;
-
-    // Promediar categorías
     const averageCategories = {};
     for (const [cat, total] of Object.entries(categoryTotals)) {
         averageCategories[cat] = Math.round(total / count);

@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import { formatCLP } from "@/lib/utils";
-import { Wallet, Edit2, TrendingDown, TrendingUp, PiggyBank } from "lucide-react";
+import { Wallet, Edit2, TrendingDown, TrendingUp, PiggyBank, PlusCircle } from "lucide-react";
 import { setPeriodBudget, updateSavingsGoal } from "@/app/actions/period"; // Using period actions now if available, or create new ones? We used setMonthlyBudget before.
 // Correct import based on previous refactor:
 import { setPeriodBudget as setBudgetAction } from "@/app/actions/budget";
 
 export default function BudgetCard({ summary }) {
     const [isEditing, setIsEditing] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
     const [budgetInput, setBudgetInput] = useState(summary.budget || 0);
+    const [addInput, setAddInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
@@ -22,6 +24,18 @@ export default function BudgetCard({ summary }) {
         // For simplicity, let's assume setPeriodBudget handles finding current if null.
         await setBudgetAction(budgetInput, null);
         setIsEditing(false);
+        setIsLoading(false);
+    };
+
+    const handleAddSave = async () => {
+        setIsLoading(true);
+        const amountToAdd = parseInt(addInput);
+        if (!isNaN(amountToAdd) && amountToAdd > 0) {
+            const newBudget = (summary.budget || 0) + amountToAdd;
+            await setBudgetAction(newBudget, null);
+        }
+        setIsAdding(false);
+        setAddInput('');
         setIsLoading(false);
     };
 
@@ -53,13 +67,22 @@ export default function BudgetCard({ summary }) {
                             )}
                         </div>
                     </div>
-                    <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all"
-                        title="Editar Sueldo"
-                    >
-                        <Edit2 size={16} />
-                    </button>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => { setIsAdding(!isAdding); setIsEditing(false); }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                            title="Ingresar Dinero Extra"
+                        >
+                            <PlusCircle size={16} />
+                        </button>
+                        <button
+                            onClick={() => { setIsEditing(!isEditing); setIsAdding(false); }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+                            title="Editar Sueldo Base"
+                        >
+                            <Edit2 size={16} />
+                        </button>
+                    </div>
                 </div>
 
                 {isEditing ? (
@@ -82,6 +105,36 @@ export default function BudgetCard({ summary }) {
                             </button>
                             <button
                                 onClick={() => setIsEditing(false)}
+                                className="text-slate-400 hover:text-white px-4 py-2 text-sm font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                ) : isAdding ? (
+                    <div className="mb-6">
+                        <p className="text-sm text-slate-400 mb-2 font-medium">Monto a sumar al sueldo actual:</p>
+                        <div className="relative">
+                            <span className="absolute left-4 top-3 text-emerald-500 font-bold">$</span>
+                            <input
+                                type="number"
+                                className="bg-[#151621] border border-white/10 rounded-xl pl-8 pr-4 py-3 text-3xl font-bold text-emerald-400 w-full focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-slate-600"
+                                value={addInput}
+                                onChange={(e) => setAddInput(e.target.value)}
+                                placeholder="Monto extra"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                            <button
+                                onClick={handleAddSave}
+                                disabled={isLoading}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                {isLoading ? '...' : 'Sumar al sueldo'}
+                            </button>
+                            <button
+                                onClick={() => { setIsAdding(false); setAddInput(''); }}
                                 className="text-slate-400 hover:text-white px-4 py-2 text-sm font-medium transition-colors"
                             >
                                 Cancelar

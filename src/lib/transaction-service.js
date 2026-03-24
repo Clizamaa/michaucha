@@ -4,34 +4,37 @@ import { revalidatePath } from "next/cache";
 export const TransactionService = {
     /**
      * Crea una nueva transacción con lógica de resolución de categoría
-     * @param {Object} data - { amount, category, date, description, paymentMethod }
+     * @param {Object} data - { amount, category, date, description, paymentMethod, userId }
      */
     async createTransaction(data) {
         try {
             if (!data.amount) throw new Error("Amount is required");
+            if (!data.userId) throw new Error("userId is required");
 
-            const categoryName = data.category || "Gastos varios";
+            let finalCategoryId = data.categoryId;
 
-            // 1. Resolver Categoría
-            let category = await prisma.category.findUnique({
-                where: { name: categoryName }
-            });
-
-            if (!category) {
-                // Retroceder a "Gastos varios" si no se encuentra la categoría específica
-                // En producción, asumimos que las categorías fijas están sembradas (seeded).
-                console.warn(`Category '${categoryName}' not found. Falling back to 'Gastos varios'.`);
-                category = await prisma.category.findUnique({
-                    where: { name: "Gastos varios" }
+            // Compatibilidad hacia atrás (por si se envía { category: "string" })
+            if (!finalCategoryId) {
+                const categoryName = data.category || "Gastos varios";
+                let categoryObj = await prisma.category.findUnique({
+                    where: { name_userId: { name: categoryName, userId: data.userId } }
                 });
 
-                // Si aún falta (fallo crítico en seeding), crear marcador de posición (seguridad solo desarrollo)
-                if (!category && process.env.NODE_ENV !== 'production') {
-                    category = await prisma.category.create({ data: { name: categoryName } });
+                if (!categoryObj) {
+                    categoryObj = await prisma.category.findUnique({
+                        where: { name_userId: { name: "Gastos varios", userId: data.userId } }
+                    });
+                    
+                    if (!categoryObj) {
+                        categoryObj = await prisma.category.create({
+                            data: { name: categoryName, userId: data.userId }
+                        });
+                    }
                 }
-            }
 
-            if (!category) throw new Error("Category resolution failed. Database might need seeding.");
+                if (!categoryObj) throw new Error("Category resolution failed.");
+                finalCategoryId = categoryObj.id;
+            }
 
             // 2. Crear Transacción
             const transaction = await prisma.transaction.create({
@@ -39,7 +42,7 @@ export const TransactionService = {
                     amount: data.amount,
                     description: data.description,
                     date: data.date ? new Date(data.date) : new Date(),
-                    categoryId: category.id,
+                    categoryId: finalCategoryId,
                     paymentMethod: data.paymentMethod || "CASH",
                 },
                 include: { category: true }
@@ -49,7 +52,6 @@ export const TransactionService = {
             revalidatePath('/');
             revalidatePath('/gastos');
             revalidatePath('/visa');
-            revalidatePath('/dashboard');
 
             return { success: true, data: transaction };
 
@@ -61,14 +63,11 @@ export const TransactionService = {
 
     async deleteTransaction(id) {
         try {
-            await prisma.transaction.delete({
-                where: { id }
-            });
+            await prisma.transaction.delete({ where: { id } });
 
             revalidatePath('/');
             revalidatePath('/gastos');
             revalidatePath('/visa');
-            revalidatePath('/dashboard');
 
             return { success: true };
         } catch (error) {
