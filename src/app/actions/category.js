@@ -6,7 +6,14 @@ import { auth } from "@/auth";
 
 async function getSessionUserId() {
     const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+    if (!session?.user) throw new Error('Unauthorized');
+    
+    if (!session.user.id && session.user.email) {
+        const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+        if (user) return user.id;
+    }
+    
+    if (!session.user.id) throw new Error('Unauthorized');
     return parseInt(session.user.id);
 }
 

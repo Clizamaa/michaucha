@@ -7,7 +7,15 @@ import { getCurrentPeriod } from "./period";
 
 async function getSessionUserId() {
     const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+    if (!session?.user) throw new Error('Unauthorized');
+    
+    // Si la sesión antigua no tiene ID pero sí email, buscar al usuario (fix 500 error en prod)
+    if (!session.user.id && session.user.email) {
+        const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+        if (user) return user.id;
+    }
+    
+    if (!session.user.id) throw new Error('Unauthorized');
     return parseInt(session.user.id);
 }
 
