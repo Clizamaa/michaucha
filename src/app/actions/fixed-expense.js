@@ -7,7 +7,7 @@ import { getCurrentPeriod } from "./period";
 
 async function getSessionUserId() {
     const session = await auth();
-    if (!session?.user) throw new Error('Unauthorized');
+    if (!session?.user) redirect('/api/auth/signout');
     
     // Si la sesión antigua no tiene ID pero sí email, buscar al usuario (fix 500 error en prod)
     if (!session.user.id && session.user.email) {
@@ -15,7 +15,7 @@ async function getSessionUserId() {
         if (user) return user.id;
     }
     
-    if (!session.user.id) throw new Error('Unauthorized');
+    if (!session.user.id) redirect('/api/auth/signout');
     return parseInt(session.user.id);
 }
 

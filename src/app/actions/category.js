@@ -3,17 +3,18 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 async function getSessionUserId() {
     const session = await auth();
-    if (!session?.user) throw new Error('Unauthorized');
+    if (!session?.user) redirect('/api/auth/signout');
     
     if (!session.user.id && session.user.email) {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } });
         if (user) return user.id;
     }
     
-    if (!session.user.id) throw new Error('Unauthorized');
+    if (!session.user.id) redirect('/api/auth/signout');
     return parseInt(session.user.id);
 }
 
