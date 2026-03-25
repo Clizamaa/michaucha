@@ -22,18 +22,19 @@ export const metadata = {
 };
 
 export default async function Dashboard() {
-  const session = await auth();
-  const userName = session?.user?.name || session?.user?.email || 'U';
-  const userInitials = userName
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  try {
+    const session = await auth();
+    const userName = session?.user?.name || session?.user?.email || 'U';
+    const userInitials = userName
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
 
-  const data = await getDashboardData();
-  const { summary, recentTransactions } = data;
-  const { periodValues } = summary;
+    const data = await getDashboardData();
+    const { summary, recentTransactions } = data;
+    const { periodValues } = summary;
 
   return (
     <div className="min-h-screen pb-24 relative overflow-hidden bg-[#0f1023] font-sans selection:bg-pink-500/30 selection:text-pink-200">
@@ -220,4 +221,17 @@ export default async function Dashboard() {
 
     </div>
   );
+  } catch (err) {
+    return (
+      <div className="min-h-screen bg-[#0f1023] text-white p-10 font-mono">
+        <h1 className="text-3xl text-red-500 font-bold mb-4">Error Fatal en Producción</h1>
+        <p className="mb-4">Para diagnosticar el problema de la pantalla blanca/500, aquí tienes el error real:</p>
+        <div className="bg-black/50 p-6 rounded-xl border border-red-500/30 overflow-auto whitespace-pre-wrap text-sm text-red-300">
+          {err.name}: {err.message}
+          {"\n\n"}
+          {err.stack}
+        </div>
+      </div>
+    );
+  }
 }
